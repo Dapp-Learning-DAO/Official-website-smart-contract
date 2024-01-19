@@ -1,12 +1,5 @@
 // SPDX-License-Identifier: MIT
 
-/**
- * @author          Yisi Liu
- * @contact         yisiliu@gmail.com
- * @author_time     04/20/2021
- * @maintainer      Hancheng Zhou, Yisi Liu
- * @maintain_time   05/21/2021
-**/
 
 pragma solidity >= 0.8.0;
 import "../lib/IERC20.sol";
@@ -26,10 +19,11 @@ contract HappyRedPacket is Initializable {
 
     struct Packed {
         uint256 packed1;            // 0 (128) total_tokens (96) expire_time(32)
-        uint256 packed2;            // 0 (64) token_addr (160) claimed_numbers(15) total_numbers(15) token_type(1) ifrandom(1)
+        uint256 packed2;            // 0 (64) token_addr (160) claimed_numbers(15)  token_type(1) ifrandom(1)
     }
 
     event CreationSuccess(
+        uint32 nonce,
         uint total,
         bytes32 id,
         string name,
@@ -43,21 +37,21 @@ contract HappyRedPacket is Initializable {
     );
 
     event ClaimSuccess(
-        bytes32 id,
+        uint32 nonce,
         address claimer,
         uint claimed_value,
         address token_address
     );
 
     event RefundSuccess(
-        bytes32 id,
+        uint32 nonce,
         address token_address,
         uint remaining_balance
     );
 
     using SafeERC20 for IERC20;
-    uint32 nonce;
-    mapping(bytes32 => RedPacket) redpacket_by_id;
+    uint32 public nonce;
+    mapping(uint32 => RedPacket) redpacket_by_id;
     bytes32 private seed;
     uint256 constant MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
 
@@ -74,6 +68,7 @@ contract HappyRedPacket is Initializable {
         nonce ++;
         require(_total_tokens >= _number, "#tokens > #packets");
         require(_number > 0, "At least 1 recipient");
+        // currently we only support 255 recipients at most
         require(_number < 256, "At most 255 recipients");
         require(_token_type == 0 || _token_type == 1, "Unrecognizable token type");
 
@@ -97,7 +92,7 @@ contract HappyRedPacket is Initializable {
         bytes32 _id = keccak256(abi.encodePacked(msg.sender, block.timestamp, nonce, seed, _seed));
         {
             uint _random_type = _ifrandom ? 1 : 0;
-            RedPacket storage redp = redpacket_by_id[_id];
+            RedPacket storage redp = redpacket_by_id[nonce];
             redp.packed.packed1 = wrap1(received_amount, _duration);
             redp.packed.packed2 = wrap2(_token_addr, _number, _token_type, _random_type);
             redp.merkleroot = _merkleroot;
@@ -108,15 +103,15 @@ contract HappyRedPacket is Initializable {
             uint number = _number;
             bool ifrandom = _ifrandom;
             uint duration = _duration;
-            emit CreationSuccess(received_amount, _id, _name, _message, msg.sender, block.timestamp, _token_addr, number, ifrandom, duration);
+            emit CreationSuccess(nonce, received_amount, _id, _name, _message, msg.sender, block.timestamp, _token_addr, number, ifrandom, duration);
         }
     }
 
     // It takes the signed msg.sender message as verification passcode
-    function claim(bytes32 id, bytes32[] memory proof) 
+    function claim(uint32 nonce, bytes32[] memory proof) 
     public returns (uint claimed) {
 
-        RedPacket storage rp = redpacket_by_id[id];
+        RedPacket storage rp = redpacket_by_id[nonce];
         Packed memory packed = rp.packed;
         // Unsuccessful
         require (unbox(packed.packed1, 224, 32) > block.timestamp, "Expired");
@@ -169,14 +164,14 @@ contract HappyRedPacket is Initializable {
         else if (token_type == 1)
             transfer_token(token_address, msg.sender, claimed_tokens);
         // Claim success event
-        emit ClaimSuccess(id, msg.sender, claimed_tokens, token_address);
+        emit ClaimSuccess(nonce, msg.sender, claimed_tokens, token_address);
         return claimed_tokens;
     }
 
     // Returns 1. remaining value 2. total number of red packets 3. claimed number of red packets
-    function check_availability(bytes32 id) external view returns ( address token_address, uint balance, uint total, 
+    function check_availability(uint32 nonce) external view returns ( address token_address, uint balance, uint total, 
                                                                     uint claimed, bool expired, uint256 claimed_amount) {
-        RedPacket storage rp = redpacket_by_id[id];
+        RedPacket storage rp = redpacket_by_id[nonce];
         Packed memory packed = rp.packed;
         return (
             address(uint160(unbox(packed.packed2, 64, 160))), 
@@ -192,8 +187,8 @@ contract HappyRedPacket is Initializable {
         return keccak256(abi.encodePacked(account));
     }
 
-    function refund(bytes32 id) public {
-        RedPacket storage rp = redpacket_by_id[id];
+    function refund(uint32 nonce) public {
+        RedPacket storage rp = redpacket_by_id[nonce];
         Packed memory packed = rp.packed;
         address creator = rp.creator;
         require(creator == msg.sender, "Creator Only");
