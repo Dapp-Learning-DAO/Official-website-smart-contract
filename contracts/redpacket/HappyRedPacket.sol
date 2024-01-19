@@ -23,9 +23,8 @@ contract HappyRedPacket is Initializable {
     }
 
     event CreationSuccess(
-        uint32 nonce,
+        uint32 id,
         uint total,
-        bytes32 id,
         string name,
         string message,
         address creator,
@@ -37,14 +36,14 @@ contract HappyRedPacket is Initializable {
     );
 
     event ClaimSuccess(
-        uint32 nonce,
+        uint32 id,
         address claimer,
         uint claimed_value,
         address token_address
     );
 
     event RefundSuccess(
-        uint32 nonce,
+        uint32 id,
         address token_address,
         uint remaining_balance
     );
@@ -62,7 +61,7 @@ contract HappyRedPacket is Initializable {
     // Inits a red packet instance
     // _token_type: 0 - ETH  1 - ERC20
     function create_red_packet (bytes32 _merkleroot, uint _number, bool _ifrandom, uint _duration, 
-                                bytes32 _seed, string memory _message, string memory _name,
+                                 string memory _message, string memory _name,
                                 uint _token_type, address _token_addr, uint _total_tokens) 
     public payable {
         nonce ++;
@@ -89,7 +88,7 @@ contract HappyRedPacket is Initializable {
 
         }
 
-        bytes32 _id = keccak256(abi.encodePacked(msg.sender, block.timestamp, nonce, seed, _seed));
+       // bytes32 _id = keccak256(abi.encodePacked(msg.sender, block.timestamp, nonce, seed, _seed));
         {
             uint _random_type = _ifrandom ? 1 : 0;
             RedPacket storage redp = redpacket_by_id[nonce];
@@ -103,24 +102,24 @@ contract HappyRedPacket is Initializable {
             uint number = _number;
             bool ifrandom = _ifrandom;
             uint duration = _duration;
-            emit CreationSuccess(nonce, received_amount, _id, _name, _message, msg.sender, block.timestamp, _token_addr, number, ifrandom, duration);
+            emit CreationSuccess(nonce, received_amount, _name, _message, msg.sender, block.timestamp, _token_addr, number, ifrandom, duration);
         }
     }
 
     // It takes the signed msg.sender message as verification passcode
-    function claim(uint32 nonce, bytes32[] memory proof) 
+    function claim(uint32 id, bytes32[] memory proof) 
     public returns (uint claimed) {
 
-        RedPacket storage rp = redpacket_by_id[nonce];
+
+        RedPacket storage rp = redpacket_by_id[id];
         Packed memory packed = rp.packed;
         // Unsuccessful
         require (unbox(packed.packed1, 224, 32) > block.timestamp, "Expired");
         uint total_number = unbox(packed.packed2, 239, 15);
         uint claimed_number = unbox(packed.packed2, 224, 15);
         require (claimed_number < total_number, "Out of stock");
-        
-        bytes32 merkleroot = rp.merkleroot;
-        require(MerkleProof.verify(proof, merkleroot, _leaf(msg.sender)), 'Verification failed');
+    
+        require(MerkleProof.verify(proof,  rp.merkleroot, _leaf(msg.sender)), 'Verification failed');
 
         uint256 claimed_tokens;
         uint256 token_type = unbox(packed.packed2, 254, 1);
@@ -169,9 +168,9 @@ contract HappyRedPacket is Initializable {
     }
 
     // Returns 1. remaining value 2. total number of red packets 3. claimed number of red packets
-    function check_availability(uint32 nonce) external view returns ( address token_address, uint balance, uint total, 
+    function check_availability(uint32 id) external view returns ( address token_address, uint balance, uint total, 
                                                                     uint claimed, bool expired, uint256 claimed_amount) {
-        RedPacket storage rp = redpacket_by_id[nonce];
+        RedPacket storage rp = redpacket_by_id[id];
         Packed memory packed = rp.packed;
         return (
             address(uint160(unbox(packed.packed2, 64, 160))), 
@@ -187,8 +186,8 @@ contract HappyRedPacket is Initializable {
         return keccak256(abi.encodePacked(account));
     }
 
-    function refund(uint32 nonce) public {
-        RedPacket storage rp = redpacket_by_id[nonce];
+    function refund(uint32 id) public {
+        RedPacket storage rp = redpacket_by_id[id];
         Packed memory packed = rp.packed;
         address creator = rp.creator;
         require(creator == msg.sender, "Creator Only");

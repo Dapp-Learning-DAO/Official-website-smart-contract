@@ -57,7 +57,7 @@ async function main() {
     number: 93,
     ifrandom: true,
     duration: 259200,
-    seed: ethers.utils.formatBytes32String('lajsdklfjaskldfhaikl'),
+    //seed: ethers.utils.formatBytes32String('lajsdklfjaskldfhaikl'),
     message: 'Hi',
     name: 'cache',
     token_type: 1,
@@ -66,7 +66,7 @@ async function main() {
     total_tokens: 438000000
   };
 
-  redPacket.once('CreationSuccess', (total, id, name, message, creator, creation_time, token_address, number, ifrandom, duration) => {
+  redPacket.once('CreationSuccess', (id, total, name, message, creator, creation_time, token_address, number, ifrandom, duration) => {
     endSleep = true;
     saveRedpacketDeployment({ redPacketID: id, redPacketTotal: total.toString() });
     console.log(`CreationSuccess Event, total: ${total.toString()}\tRedpacketId: ${id}  `);

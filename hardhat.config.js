@@ -2,7 +2,12 @@ require("@nomicfoundation/hardhat-toolbox");
 require('dotenv').config();
 
 
-
+const settings = {
+  optimizer: {
+    enabled: true,
+    runs: 200,
+  },
+};
 function mnemonic() {
   return [process.env.PRIVATE_KEY, process.env.PRIVATE_KEY1, process.env.PRIVATE_KEY2];
 }
