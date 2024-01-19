@@ -163,7 +163,7 @@ contract HappyRedPacket is Initializable {
         else if (token_type == 1)
             transfer_token(token_address, msg.sender, claimed_tokens);
         // Claim success event
-        emit ClaimSuccess(nonce, msg.sender, claimed_tokens, token_address);
+        emit ClaimSuccess(id, msg.sender, claimed_tokens, token_address);
         return claimed_tokens;
     }
 
