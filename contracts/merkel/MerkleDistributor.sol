@@ -8,15 +8,19 @@ contract MerkleDistributor is IMerkleDistributor {
     address public immutable override token;
     bytes32 public immutable override merkleRoot;
     address public owner;
+    string public name;
+    uint public number;
     uint256 public expire_time;
 
     // This is a packed array of booleans.
     mapping(uint256 => uint256) private claimedBitMap;
 
-    constructor(address token_, bytes32 merkleRoot_, uint _duration, address _owner) public {
+    constructor(address token_, bytes32 merkleRoot_, string memory name_, uint _number,  uint _duration, address _owner) public {
         owner = _owner;
         token = token_;
         merkleRoot = merkleRoot_;
+        number = _number;
+        name = name_;
         expire_time = block.timestamp + _duration;
     }
 
@@ -38,7 +42,7 @@ contract MerkleDistributor is IMerkleDistributor {
         require (expire_time > block.timestamp, "Expired");
         require(!isClaimed(index), 'MerkleDistributor: Drop already claimed.');
 
-
+        require(msg.sender == account, "Only can claim yours");
         // Verify the merkle proof.
         bytes32 node = keccak256(abi.encodePacked(index, account, amount));
         require(MerkleProof.verify(merkleProof, merkleRoot, node), 'MerkleDistributor: Invalid proof.');
