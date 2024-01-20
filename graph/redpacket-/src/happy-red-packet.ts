@@ -11,11 +11,12 @@ import {
 } from "../generated/schema"
 
 export function handleClaimSuccess(event: ClaimSuccessEvent): void {
+  let tempClaimID = event.transaction.hash.concatI32(event.logIndex.toI32())
+  let claimID = tempClaimID.toHexString()
   let claim = new Claim(
-    event.transaction.hash.concatI32(event.logIndex.toI32())
+    claimID
   )
-  let tempInt32 = event.params.id.toI32()
-  let packetId = Bytes.fromI32(tempInt32)
+  let packetId = event.params.id.toString()
   claim.happyRedPacketId = packetId
   claim.claimer = event.params.claimer
   claim.nonce = event.params.id
@@ -45,8 +46,7 @@ export function handleClaimSuccess(event: ClaimSuccessEvent): void {
 }
 
 export function handleCreationSuccess(event: CreationSuccessEvent): void {
-  let tempInt32 = event.params.id.toI32()
-  let packetId = Bytes.fromI32(tempInt32)
+  let packetId = event.params.id.toString()
   let redpacket = new Redpacket(
     packetId
   )
@@ -74,11 +74,12 @@ export function handleCreationSuccess(event: CreationSuccessEvent): void {
 }
 
 export function handleRefundSuccess(event: RefundSuccessEvent): void {
+  let tempRefundId = event.transaction.hash.concatI32(event.logIndex.toI32())
+  let refundID = tempRefundId.toHexString()
   let entity = new Refund(
-    event.transaction.hash.concatI32(event.logIndex.toI32())
+    refundID
   )
-  let tempInt32 = event.params.id.toI32()
-  let packetId = Bytes.fromI32(tempInt32)
+  let packetId = event.params.id.toString()
   entity.happyRedPacketId = packetId
   entity.nonce = event.params.id
   entity.tokenAddress = event.params.token_address
