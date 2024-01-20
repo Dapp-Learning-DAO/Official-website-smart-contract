@@ -1,0 +1,8 @@
+{
+  "sepolia": {
+    "HappyRedPacket": {
+      "address": "0xbF624120255A7218C8058f3667f4b4e85eAac074",
+      "startBlock": 4916775
+    }
+  }
+}
