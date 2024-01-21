@@ -44,3 +44,8 @@ type Refund @entity {
   blockTimestamp: BigInt!
   transactionHash: Bytes!
 }
+
+type Lastupdate @entity {
+  id: ID!
+  lastupdateTimestamp: BigInt!
+}
