@@ -2,6 +2,7 @@ require('@nomiclabs/hardhat-waffle');
 require('@nomiclabs/hardhat-ethers');
 
 require('dotenv').config();
+const { TES_OWNER_KEY, PROD_OWNER_KEY } = process.env;
 
 
 const settings = {
@@ -10,9 +11,9 @@ const settings = {
     runs: 200,
   },
 };
-function mnemonic() {
-  return [process.env.PRIVATE_KEY, process.env.PRIVATE_KEY1, process.env.PRIVATE_KEY2];
-}
+// function mnemonic() {
+//   return [process.env.PRIVATE_KEY, process.env.PRIVATE_KEY1, process.env.PRIVATE_KEY2];
+// }
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -28,21 +29,26 @@ module.exports = {
         (you can put in a mnemonic here to set the deployer locally)
       */
     },
-    mainnet: {
-      url: 'https://mainnet.infura.io/v3/' + process.env.INFURA_ID, //<---- YOUR INFURA ID! (or it won't work)
-      accounts: mnemonic(),
+    testnetMumbai: {
+      url: "https://polygon-mumbai-bor.publicnode.com",//
+      chainId: 80001,
+      accounts: [`${TES_OWNER_KEY}`], //第一个owner,
     },
-    ropsten: {
-      url: 'https://ropsten.infura.io/v3/' + process.env.INFURA_ID, //<---- YOUR INFURA ID! (or it won't work)
-      accounts: mnemonic(),
-    },
-    matic: {
-      url: 'https://polygon-mainnet.infura.io/v3/' + process.env.INFURA_ID,
-      accounts: mnemonic()
-    },
-    optim: {
-      url: "https://optimism-mainnet.infura.io/v3/" + process.env.INFURA_ID,
-      accounts: mnemonic()
-    },
+    // mainnet: {
+    //   url: 'https://mainnet.infura.io/v3/' + process.env.INFURA_ID, //<---- YOUR INFURA ID! (or it won't work)
+    //   accounts: mnemonic(),
+    // },
+    // ropsten: {
+    //   url: 'https://ropsten.infura.io/v3/' + process.env.INFURA_ID, //<---- YOUR INFURA ID! (or it won't work)
+    //   accounts: mnemonic(),
+    // },
+    // matic: {
+    //   url: 'https://polygon-mainnet.infura.io/v3/' + process.env.INFURA_ID,
+    //   accounts: mnemonic()
+    // },
+    // optim: {
+    //   url: "https://optimism-mainnet.infura.io/v3/" + process.env.INFURA_ID,
+    //   accounts: mnemonic()
+    // },
   },
 };
