@@ -38,10 +38,10 @@ async function main() {
   const redPacket = await ethers.getContractAt('HappyRedPacket', HappyRedPacketAddress, deployer);
   const simpleToken = await ethers.getContractAt('SimpleToken', SimpleTokenAddress, deployer);
 
-  // let tx = await simpleToken.approve(redPacket.address, ethers.utils.parseEther('100'));
-  // await tx.wait();
+  let tx = await simpleToken.approve(redPacket.address, ethers.utils.parseEther('100'));
+  await tx.wait();
 
-  // console.log('Approve Successfully');
+  console.log('Approve Successfully');
 
   merkleTree = new MerkleTree(
     claimerList.map((user) => hashToken(user)),
@@ -53,17 +53,16 @@ async function main() {
 
   // create_red_packet
   let creationParams = {
-    merkleroot: merkleTreeRoot,
-    number: 93,
-    ifrandom: true,
-    duration: 259200,
-    //seed: ethers.utils.formatBytes32String('lajsdklfjaskldfhaikl'),
-    message: 'Hi',
-    name: 'cache',
-    token_type: 1,
-    token_addr: SimpleTokenAddress,
+    _merkleroot: merkleTreeRoot,
+    _number: 2,
+    _ifrandom: true,
+    _duration: 259200, // 259200
+    _message: 'Hi',
+    _name: 'cache',
+    _token_type: 1,
+    _token_addr: SimpleTokenAddress,
     // total_tokens: ethers.utils.parseEther('100'),
-    total_tokens: 438000000
+    _total_tokens:  100
   };
 
   redPacket.once('CreationSuccess', (id, total, name, message, creator, creation_time, token_address, number, ifrandom, duration) => {
