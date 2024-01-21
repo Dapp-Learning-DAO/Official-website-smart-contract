@@ -2,13 +2,16 @@ import { BigInt,Bytes } from "@graphprotocol/graph-ts"
 import {
   ClaimSuccess as ClaimSuccessEvent,
   CreationSuccess as CreationSuccessEvent,
-  RefundSuccess as RefundSuccessEvent
+  RefundSuccess as RefundSuccessEvent,
 } from "../generated/HappyRedPacket/HappyRedPacket"
 import {
   Claim,
   Redpacket,
-  Refund
+  Refund,
+  Lastupdate
 } from "../generated/schema"
+
+const ONE = "1"
 
 export function handleClaimSuccess(event: ClaimSuccessEvent): void {
   let tempClaimID = event.transaction.hash.concatI32(event.logIndex.toI32())
@@ -43,6 +46,13 @@ export function handleClaimSuccess(event: ClaimSuccessEvent): void {
   }
   redpacket.save()
 
+  let lastupdate = Lastupdate.load(ONE)
+  if (lastupdate === null) {
+    return
+  }
+  lastupdate.lastupdateTimestamp = event.block.timestamp
+  lastupdate.save()
+
 }
 
 export function handleCreationSuccess(event: CreationSuccessEvent): void {
@@ -50,6 +60,17 @@ export function handleCreationSuccess(event: CreationSuccessEvent): void {
   let redpacket = new Redpacket(
     packetId
   )
+
+  let lastupdate = Lastupdate.load(ONE)
+  if (lastupdate === null) {
+    lastupdate = new Lastupdate(
+      ONE
+    )
+  }
+
+  lastupdate.lastupdateTimestamp = event.block.timestamp
+  lastupdate.save()
+
   redpacket.total = event.params.total
   redpacket.happyRedPacketId = packetId
   redpacket.nonce = event.params.id
@@ -97,4 +118,11 @@ export function handleRefundSuccess(event: RefundSuccessEvent): void {
   }
   recdpacket.refunded = true
   recdpacket.save()
+
+  let lastupdate = Lastupdate.load(ONE)
+  if (lastupdate === null) {
+    return
+  }
+  lastupdate.lastupdateTimestamp = event.block.timestamp
+  lastupdate.save()
 }

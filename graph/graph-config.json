@@ -1,0 +1,16 @@
+{"sepolia-redpacket":{
+    "redpacket-address": "0x38CCD6Cd7A9746cAcdB984c05f6430187F5d5A93",
+    "graphURl-latestVersion":  "https://api.studio.thegraph.com/query/55957/redpacket-/version/latest",
+    "graphURl-currentVersion": "https://api.studio.thegraph.com/query/55957/redpacket-/v0.0.12"
+},
+"Optimism-redpacket":{
+    "redpacket-address": "0xf92Bd7Aec95e3bA47D35F9CB5Fb376fa9bd9995a",
+    "graphURl-latestVersion":  "https://api.studio.thegraph.com/query/55957/dapp-learning-redpacket/version/latest",
+    "graphURl-currentVersion": "https://api.studio.thegraph.com/query/55957/dapp-learning-redpacket/v0.0.11"
+},
+"Optimism-MerkleDistributorFactory":{
+    "merkleDistributorFactory-address": "0xBCa06150053F9b933eaddE04D1Fb1C82FD88D09d",
+    "graphURl-latestVersion":  "https://api.studio.thegraph.com/query/55957/op_merkledistributor/version/latest",
+    "graphURl-currentVersion": "https://api.studio.thegraph.com/query/55957/op_merkledistributor/v0.0.9"
+}
+}
