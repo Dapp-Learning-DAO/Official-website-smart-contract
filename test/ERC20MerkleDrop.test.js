@@ -15,6 +15,7 @@ function hashToken(index, account, amount) {
   return Buffer.from(ethers.utils.solidityKeccak256(['uint256', 'address', 'uint256'], [index, account, amount]).slice(2), 'hex')
 }
 
+let repackName = "MyRedPacket";
 
 describe('ERC20MerkleDrop', function () {
 
@@ -70,30 +71,40 @@ describe('ERC20MerkleDrop', function () {
       //defactory factory
       distributorFactory = await deploy("MerkleDistributorFactory");
 
-
       //discribute total 
       const distributeTotal = ethers.BigNumber.from(201);
       //distribute erc20
+
       await erc20.approve(distributorFactory.address, distributeTotal);
-      await distributorFactory.createDistributor(erc20.address, distributeTotal, tree.getHexRoot(), 3600);
-      distributorErc20 = await ethers.getContractAt("MerkleDistributor", await distributorFactory.getDistributor(1));
+      let packetName = `${repackName}01`;
+      await distributorFactory.createDistributor(erc20.address, packetName, distributeTotal, tree.getHexRoot(), 3600);
+      let distributorErc20Address = await distributorFactory.redpacketByName(packetName);
+      distributorErc20 = await ethers.getContractAt("MerkleDistributor", distributorErc20Address);
       console.log("distributorErc20 address", distributorErc20.address);
+
       //discribute eth
-      await distributorFactory.createDistributorWithEth(tree.getHexRoot(), 3600, { value: distributeTotal });
-      distributorEth = await ethers.getContractAt("MerkleDistributor", await distributorFactory.getDistributor(2));
+      packetName = `${repackName}02`;
+      await distributorFactory.createDistributorWithEth(packetName, tree.getHexRoot(), 3600, { value: distributeTotal });
+      let distributorEthAddress = await distributorFactory.redpacketByName(packetName);
+      distributorEth = await ethers.getContractAt("MerkleDistributor", distributorEthAddress);
       console.log("distributorEth address", distributorEth.address);
+
     });
 
 
 
 
-    it('expect claim fail:error amount', async () => {
+    it('expect fail', async () => {
       //eg:error amount
       let proof = tree.getProof(0, alice.address, ethers.BigNumber.from(200))
       await expect(distributorErc20.connect(alice).claim(0, 200, proof)).to.be.revertedWith("MerkleDistributor: Invalid proof.");
       //eg:error amount
       proof = tree.getProof(0, alice.address, ethers.BigNumber.from(100))
       await expect(distributorErc20.connect(alice).claim(0, 200, proof)).to.be.revertedWith("MerkleDistributor: Invalid proof.");
+      //eg: ducpliate packetName
+      let packetName = `${repackName}02`;
+      const distributeTotal = ethers.BigNumber.from(201);
+      await expect(distributorFactory.createDistributorWithEth(packetName, tree.getHexRoot(), 3600, { value: distributeTotal })).to.be.revertedWith("Duplicate name");
     })
 
 

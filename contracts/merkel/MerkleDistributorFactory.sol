@@ -8,14 +8,12 @@ import "hardhat/console.sol";
 
 contract MerkleDistributorFactory is Ownable {
     // Keep track of all created distributors
-    // MerkleDistributor[] public distributors;
-    uint32 public nonce;
-    mapping(uint32 => MerkleDistributor) redpacket_by_id;
+    mapping(string => MerkleDistributor) public redpacketByName;
 
     event DistributorCreated(
         address indexed distributorAddress,
         address indexed owner,
-        uint32 nonce,
+        string name,
         uint256 timestamp,
         address token,
         uint duration
@@ -27,6 +25,7 @@ contract MerkleDistributorFactory is Ownable {
 
     function createDistributor(
         address token,
+        string memory name,
         uint256 tokenTotal,
         bytes32 merkleRoot,
         uint256 duration
@@ -35,6 +34,7 @@ contract MerkleDistributorFactory is Ownable {
         require(tokenTotal > 0, "TokenTotal");
         MerkleDistributor distributor = _createDistributor(
             token,
+            name,
             merkleRoot,
             duration
         );
@@ -47,12 +47,14 @@ contract MerkleDistributorFactory is Ownable {
     }
 
     function createDistributorWithEth(
+        string memory name,
         bytes32 merkleRoot,
         uint256 duration
     ) public payable {
         require(msg.value > 0, "TotalAmount");
         MerkleDistributor distributor = _createDistributor(
             address(0),
+            name,
             merkleRoot,
             duration
         );
@@ -61,32 +63,28 @@ contract MerkleDistributorFactory is Ownable {
 
     function _createDistributor(
         address token,
+        string memory name,
         bytes32 merkleRoot,
         uint256 duration
     ) private returns (MerkleDistributor) {
-        nonce++;
+        require(address(redpacketByName[name]) == address(0), "Duplicate name");
         MerkleDistributor distributor = new MerkleDistributor(
             token,
             merkleRoot,
             duration,
             msg.sender
         );
-        redpacket_by_id[nonce] = distributor;
+
+        redpacketByName[name] = distributor;
         emit DistributorCreated(
             address(distributor),
             msg.sender,
-            nonce,
+            name,
             block.timestamp,
             token,
             duration
         );
         return distributor;
-    }
-
-    function getDistributor(
-        uint32 index
-    ) public view returns (MerkleDistributor) {
-        return redpacket_by_id[index];
     }
 
     function ownerWithdraw(
