@@ -23,8 +23,9 @@ contract HappyRedPacket is Initializable {
     }
 
     event CreationSuccess(
-        uint32 id,
+      
         uint total,
+        bytes32 id,
         string name,
         string message,
         address creator,
@@ -36,21 +37,21 @@ contract HappyRedPacket is Initializable {
     );
 
     event ClaimSuccess(
-        uint32 id,
+        bytes32 id,
         address claimer,
         uint claimed_value,
         address token_address
     );
 
     event RefundSuccess(
-        uint32 id,
+        bytes32 id,
         address token_address,
         uint remaining_balance
     );
 
     using SafeERC20 for IERC20;
     uint32 public nonce;
-    mapping(uint32 => RedPacket) redpacket_by_id;
+    mapping(bytes32 => RedPacket) redpacket_by_id;
     bytes32 private seed;
     uint256 constant MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
 
@@ -88,10 +89,10 @@ contract HappyRedPacket is Initializable {
 
         }
 
-       // bytes32 _id = keccak256(abi.encodePacked(msg.sender, block.timestamp, nonce, seed, _seed));
+        bytes32 _id = keccak256(abi.encodePacked(msg.sender, _message));
         {
             uint _random_type = _ifrandom ? 1 : 0;
-            RedPacket storage redp = redpacket_by_id[nonce];
+            RedPacket storage redp = redpacket_by_id[_id];
             redp.packed.packed1 = wrap1(received_amount, _duration);
             redp.packed.packed2 = wrap2(_token_addr, _number, _token_type, _random_type);
             redp.merkleroot = _merkleroot;
@@ -102,12 +103,12 @@ contract HappyRedPacket is Initializable {
             uint number = _number;
             bool ifrandom = _ifrandom;
             uint duration = _duration;
-            emit CreationSuccess(nonce, received_amount, _name, _message, msg.sender, block.timestamp, _token_addr, number, ifrandom, duration);
+            emit CreationSuccess(received_amount, _id,   _name, _message, msg.sender, block.timestamp, _token_addr, number, ifrandom, duration);
         }
     }
 
     // It takes the signed msg.sender message as verification passcode
-    function claim(uint32 id, bytes32[] memory proof) 
+    function claim(bytes32 id, bytes32[] memory proof) 
     public returns (uint claimed) {
 
 
@@ -168,7 +169,7 @@ contract HappyRedPacket is Initializable {
     }
 
     // Returns 1. remaining value 2. total number of red packets 3. claimed number of red packets
-    function check_availability(uint32 id) external view returns ( address token_address, uint balance, uint total, 
+    function check_availability(bytes32 id) external view returns ( address token_address, uint balance, uint total, 
                                                                     uint claimed, bool expired, uint256 claimed_amount) {
         RedPacket storage rp = redpacket_by_id[id];
         Packed memory packed = rp.packed;
@@ -186,7 +187,7 @@ contract HappyRedPacket is Initializable {
         return keccak256(abi.encodePacked(account));
     }
 
-    function refund(uint32 id) public {
+    function refund(bytes32 id) public {
         RedPacket storage rp = redpacket_by_id[id];
         Packed memory packed = rp.packed;
         address creator = rp.creator;
