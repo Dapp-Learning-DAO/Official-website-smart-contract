@@ -92,7 +92,7 @@ contract ZKHappyRedPacket is Initializable, Groth16Verifier {
 
         }
 
-        bytes32 _id = keccak256(abi.encodePacked(msg.sender, _message));
+        bytes32 _id = keccak256(abi.encodePacked(msg.sender, _message, nonce));
         bytes32 lock = _lock;
         {
             uint _random_type = _ifrandom ? 1 : 0;

@@ -43,13 +43,15 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
         bytes32 id,
         address claimer,
         uint claimed_value,
-        address token_address
+        address token_address,
+        bytes32 lock
     );
 
     event RefundSuccess(
         bytes32 id,
         address token_address,
-        uint remaining_balance
+        uint remaining_balance,
+        bytes32 lock
     );
 
     using SafeERC20 for IERC20;
@@ -92,7 +94,7 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
 
         }
 
-        bytes32 _id = keccak256(abi.encodePacked(msg.sender, _message));
+        bytes32 _id = keccak256(abi.encodePacked(msg.sender, _message, nonce));
         bytes32 lock = _lock;
         {
             uint _random_type = _ifrandom ? 1 : 0;
@@ -100,6 +102,7 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
             redp.packed.packed1 = wrap1(received_amount, _duration);
             redp.packed.packed2 = wrap2(_token_addr, _number, _token_type, _random_type);
             redp.merkleroot = _merkleroot;
+            redp.lock = lock;
             redp.creator = msg.sender;
         }
         {
@@ -107,12 +110,12 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
             uint number = _number;
             bool ifrandom = _ifrandom;
             uint duration = _duration;
-            emit CreationSuccess(received_amount, _id,   _name, _message, msg.sender, block.timestamp, _token_addr, number, ifrandom, duration, lock);
+            emit CreationSuccess(received_amount, _id,  _name, _message, msg.sender, block.timestamp, _token_addr, number, ifrandom, duration, lock);
         }
     }
 
     // It takes the signed msg.sender message as verification passcode
-    function claim(bytes32 _id, bytes32[] memory proof, uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC) 
+    function claim(bytes32 _id, bytes32[] memory proof) 
     public returns (uint claimed) {
 
         bytes32 id = _id;
@@ -120,13 +123,6 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
         Packed memory packed = rp.packed;
         // Unsuccessful
         require (unbox(packed.packed1, 224, 32) > block.timestamp, "Expired");
-
-        if(rp.lock != bytes32(0)) {
-         uint256[1] memory input;
-         input[0] = uint256(rp.lock);
-         require(verifyProof(_pA, _pB, _pC, input), "ZK Verification failed, wrong password");
-        }
-
 
         uint total_number = unbox(packed.packed2, 239, 15);
         uint claimed_number = unbox(packed.packed2, 224, 15);
@@ -176,8 +172,22 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
         else if (token_type == 1)
             transfer_token(token_address, msg.sender, claimed_tokens);
         // Claim success event
-        emit ClaimSuccess(id, msg.sender, claimed_tokens, token_address);
+        emit ClaimSuccess(id, msg.sender, claimed_tokens, token_address, rp.lock);
         return claimed_tokens;
+    }
+
+
+    function claimPasswordRedpacket(bytes32 _id, bytes32[] memory proof, uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC) 
+    public returns (uint claimed) {
+
+        RedPacket storage rp = redpacket_by_id[_id];
+         uint256[1] memory input;
+         input[0] = uint256(rp.lock);
+         require(verifyProof(_pA, _pB, _pC, input), "ZK Verification failed, wrong password");
+    
+         claimed = claim(_id, proof);
+
+        
     }
 
     // Returns 1. remaining value 2. total number of red packets 3. claimed number of red packets
@@ -220,7 +230,7 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
             transfer_token(token_address, msg.sender, remaining_tokens);
         }
 
-        emit RefundSuccess(id, token_address, remaining_tokens);
+        emit RefundSuccess(id, token_address, remaining_tokens, rp.lock);
     }
 
 //------------------------------------------------------------------
