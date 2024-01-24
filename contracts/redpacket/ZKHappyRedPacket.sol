@@ -10,7 +10,7 @@ import "@openzeppelin/contracts/utils/cryptography/ECDSA.sol";
 import "@openzeppelin/contracts/utils/math/Math.sol";
 import "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
-contract HappyRedPacket is Initializable, Groth16Verifier {
+contract ZKHappyRedPacket is Initializable, Groth16Verifier {
     struct RedPacket {
         Packed packed;
         mapping(address => uint256) claimed_list;
@@ -64,7 +64,7 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
 
     // Inits a red packet instance
     // _token_type: 0 - ETH  1 - ERC20
-    function create_red_packet (bytes32 _merkleroot, bytes32 _lock,  uint _number, bool _ifrandom, uint _duration, 
+    function create_red_packet (bytes32 _merkleroot, bytes32 _lock , uint _number, bool _ifrandom, uint _duration, 
                                  string memory _message, string memory _name,
                                 uint _token_type, address _token_addr, uint _total_tokens) 
     public payable {
@@ -100,6 +100,7 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
             redp.packed.packed1 = wrap1(received_amount, _duration);
             redp.packed.packed2 = wrap2(_token_addr, _number, _token_type, _random_type);
             redp.merkleroot = _merkleroot;
+            redp.lock = lock;
             redp.creator = msg.sender;
         }
         {
@@ -107,7 +108,7 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
             uint number = _number;
             bool ifrandom = _ifrandom;
             uint duration = _duration;
-            emit CreationSuccess(received_amount, _id,   _name, _message, msg.sender, block.timestamp, _token_addr, number, ifrandom, duration, lock);
+            emit CreationSuccess(received_amount, _id,  _name, _message, msg.sender, block.timestamp, _token_addr, number, ifrandom, duration, lock);
         }
     }
 
@@ -115,25 +116,26 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
     function claim(bytes32 _id, bytes32[] memory proof, uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC) 
     public returns (uint claimed) {
 
+
+
         bytes32 id = _id;
         RedPacket storage rp = redpacket_by_id[id];
         Packed memory packed = rp.packed;
+
+
         // Unsuccessful
         require (unbox(packed.packed1, 224, 32) > block.timestamp, "Expired");
 
-        if(rp.lock != bytes32(0)) {
-         uint256[1] memory input;
-         input[0] = uint256(rp.lock);
-         require(verifyProof(_pA, _pB, _pC, input), "ZK Verification failed, wrong password");
-        }
-
+        uint256[1] memory input;
+        input[0] = uint256(rp.lock);
+        require(verifyProof(_pA, _pB, _pC, input), "ZK Verification failed, wrong password");
 
         uint total_number = unbox(packed.packed2, 239, 15);
         uint claimed_number = unbox(packed.packed2, 224, 15);
         require (claimed_number < total_number, "Out of stock");
     
-        require(MerkleProof.verify(proof,  rp.merkleroot, _leaf(msg.sender)), 'Verification failed, forbidden');
-
+        require(MerkleProof.verify(proof,  rp.merkleroot, _leaf(msg.sender)), 'Verification failed, not forbidden');
+   
         uint256 claimed_tokens;
         uint256 token_type = unbox(packed.packed2, 254, 1);
         uint256 ifrandom = unbox(packed.packed2, 255, 1);
