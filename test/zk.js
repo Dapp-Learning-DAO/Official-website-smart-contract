@@ -11,7 +11,7 @@ describe('verify hash', ()=>{
     let circuit;
     let poseidon;
     before(async()=>{
-        circuit = await wasm_tester(path.join(__dirname, "../zk-redpacket", "datahash.circom"));
+        circuit = await wasm_tester(path.join(__dirname, "../zk-redpacket/circuits", "datahash.circom"));
         poseidon = await buildPoseidonOpt();
     })
 
@@ -33,7 +33,10 @@ describe('verify hash', ()=>{
    
         const { proof, publicSignals } = await snarkjs.groth16.fullProve({ in: 2024 }, "./zk-redpacket/build/datahash_js/datahash.wasm", "./zk-redpacket/circuit_final.zkey");
        
-        const hash = poseidon.F.toString(poseidon([2024]));
+        //const encodedString = ethers.utils.defaultAbiCoder.encode(["string"], ["hello world"]);
+       // console.log("encodedString ", encodedString);
+
+        const hash = poseidon.F.toString(poseidon([10]));
         console.log("hash ", hash);
         console.log("pbs: ", publicSignals);
         console.log("proof: ", proof);
