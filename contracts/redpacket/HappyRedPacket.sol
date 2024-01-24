@@ -72,7 +72,7 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
         require(_total_tokens >= _number, "#tokens > #packets");
         require(_number > 0, "At least 1 recipient");
         // currently we only support 255 recipients at most
-        require(_number < 256, "At most 255 recipients");
+        require(_number < 512, "At most 511 recipients");
         require(_token_type == 0 || _token_type == 1, "Unrecognizable token type");
 
         // require minium 0.1 for each user
