@@ -1,8 +1,8 @@
 pragma solidity ^0.8.0;
 
-import "./IERC20.sol";
-import "./MerkleProof.sol";
-import "./IMerkleDistributor.sol";
+import './IERC20.sol';
+import './MerkleProof.sol';
+import './IMerkleDistributor.sol';
 
 contract MerkleDistributor is IMerkleDistributor {
     address public immutable override token;
@@ -15,7 +15,14 @@ contract MerkleDistributor is IMerkleDistributor {
     // This is a packed array of booleans.
     mapping(uint256 => uint256) private claimedBitMap;
 
-    constructor(address token_, bytes32 merkleRoot_, string memory name_, uint _number,  uint _duration, address _owner) public {
+    constructor(
+        address token_,
+        bytes32 merkleRoot_,
+        string memory name_,
+        uint _number,
+        uint _duration,
+        address _owner
+    ) public {
         owner = _owner;
         token = token_;
         merkleRoot = merkleRoot_;
@@ -38,14 +45,22 @@ contract MerkleDistributor is IMerkleDistributor {
         claimedBitMap[claimedWordIndex] = claimedBitMap[claimedWordIndex] | (1 << claimedBitIndex);
     }
 
-    function claim(uint256 index, address account, uint256 amount, bytes32[] calldata merkleProof) external override {
-        require (expire_time > block.timestamp, "Expired");
+    function claim(
+        uint256 index,
+        address account,
+        uint256 amount,
+        bytes32[] calldata merkleProof
+    ) external override {
+        require(expire_time > block.timestamp, 'Expired');
         require(!isClaimed(index), 'MerkleDistributor: Drop already claimed.');
 
-        require(msg.sender == account, "Only can claim yours");
+        require(msg.sender == account, 'Only can claim yours');
         // Verify the merkle proof.
         bytes32 node = keccak256(abi.encodePacked(index, account, amount));
-        require(MerkleProof.verify(merkleProof, merkleRoot, node), 'MerkleDistributor: Invalid proof.');
+        require(
+            MerkleProof.verify(merkleProof, merkleRoot, node),
+            'MerkleDistributor: Invalid proof.'
+        );
 
         // Mark it claimed and send the token.
         _setClaimed(index);
@@ -54,10 +69,10 @@ contract MerkleDistributor is IMerkleDistributor {
         emit Claimed(index, account, amount);
     }
 
-     /// @notice  owner withdraw the rest token
-    function claimRestTokens(address to ) public returns (bool) {
+    /// @notice  owner withdraw the rest token
+    function claimRestTokens(address to) public returns (bool) {
         // only owner
-        require (expire_time < block.timestamp, "Not expired yet");
+        require(expire_time < block.timestamp, 'Not expired yet');
         require(msg.sender == owner);
         require(IERC20(token).balanceOf(address(this)) >= 0);
         require(IERC20(token).transfer(to, IERC20(token).balanceOf(address(this))));
