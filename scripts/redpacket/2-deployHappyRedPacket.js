@@ -4,7 +4,7 @@
 // When running the script with `hardhat run <script>` you'll find the Hardhat
 // Runtime Environment's members available in the global scope.
 const { ethers } = require('hardhat');
-const { saveRedpacketDeployment } = require('../../utils');
+const { saveRedpacketDeployment, verifyContract } = require('../../utils');
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -33,6 +33,9 @@ async function main() {
   })
 
   console.log('Init HappyRedPacket successfully');
+
+  // verify contract
+  await verifyContract("redPacketAddress");
 }
 
 // We recommend this pattern to be able to use async/await everywhere
