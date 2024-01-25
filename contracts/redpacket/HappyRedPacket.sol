@@ -94,7 +94,9 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
 
         }
 
-        bytes32 _id = keccak256(abi.encodePacked(msg.sender, _message, nonce));
+        bytes32 _id = keccak256(abi.encodePacked(msg.sender, _message));
+
+        require(redpacket_by_id[_id].creator == address(0), "Redpacket already exists");
         bytes32 lock = _lock;
         {
             uint _random_type = _ifrandom ? 1 : 0;
@@ -114,9 +116,79 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
         }
     }
 
-    // It takes the signed msg.sender message as verification passcode
-    function claim(bytes32 _id, bytes32[] memory proof) 
+   
+
+   function claimOrdinaryRedpacket(bytes32 _id, bytes32[] memory proof) 
     public returns (uint claimed) {
+
+        RedPacket storage rp = redpacket_by_id[_id];
+        require(rp.lock == bytes32(0), "Not ordinary redpacket");
+
+         claimed = _claim(_id, proof);
+
+        
+    }
+
+    function claimPasswordRedpacket(bytes32 _id, bytes32[] memory proof, uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC) 
+    public returns (uint claimed) {
+
+        RedPacket storage rp = redpacket_by_id[_id];
+        require(rp.lock != bytes32(0), "Not password redpacket");
+         uint256[1] memory input;
+         input[0] = uint256(rp.lock);
+  
+         require(verifyProof(_pA, _pB, _pC, input), "ZK Verification failed, wrong password");
+    
+         claimed = _claim(_id, proof);
+
+        
+    }
+
+    // Returns 1. remaining value 2. total number of red packets 3. claimed number of red packets
+    function check_availability(bytes32 id) external view returns ( address token_address, uint balance, uint total, 
+                                                                    uint claimed, bool expired, uint256 claimed_amount) {
+        RedPacket storage rp = redpacket_by_id[id];
+        Packed memory packed = rp.packed;
+        return (
+            address(uint160(unbox(packed.packed2, 64, 160))), 
+            unbox(packed.packed1, 128, 96), 
+            unbox(packed.packed2, 239, 15), 
+            unbox(packed.packed2, 224, 15), 
+            block.timestamp > unbox(packed.packed1, 224, 32), 
+            rp.claimed_list[msg.sender]
+        );
+    }
+
+
+    function refund(bytes32 id) public {
+        RedPacket storage rp = redpacket_by_id[id];
+        Packed memory packed = rp.packed;
+        address creator = rp.creator;
+        require(creator == msg.sender, "Creator Only");
+        require(unbox(packed.packed1, 224, 32) <= block.timestamp, "Not expired yet");
+        uint256 remaining_tokens = unbox(packed.packed1, 128, 96);
+        require(remaining_tokens != 0, "None left in the red packet");
+
+        uint256 token_type = unbox(packed.packed2, 254, 1);
+        address token_address = address(uint160(unbox(packed.packed2, 64, 160)));
+
+        rp.packed.packed1 = rewriteBox(packed.packed1, 128, 96, 0);
+
+        if (token_type == 0) {
+            payable(msg.sender).transfer(remaining_tokens);
+        }
+        else if (token_type == 1) {
+            transfer_token(token_address, msg.sender, remaining_tokens);
+        }
+
+        emit RefundSuccess(id, token_address, remaining_tokens, rp.lock);
+    }
+
+
+
+     // It takes the signed msg.sender message as verification passcode
+    function _claim(bytes32 _id, bytes32[] memory proof) 
+    internal returns (uint claimed) {
 
         bytes32 id = _id;
         RedPacket storage rp = redpacket_by_id[id];
@@ -177,61 +249,10 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
     }
 
 
-    function claimPasswordRedpacket(bytes32 _id, bytes32[] memory proof, uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC) 
-    public returns (uint claimed) {
-
-        RedPacket storage rp = redpacket_by_id[_id];
-         uint256[1] memory input;
-         input[0] = uint256(rp.lock);
-         require(verifyProof(_pA, _pB, _pC, input), "ZK Verification failed, wrong password");
-    
-         claimed = claim(_id, proof);
-
-        
-    }
-
-    // Returns 1. remaining value 2. total number of red packets 3. claimed number of red packets
-    function check_availability(bytes32 id) external view returns ( address token_address, uint balance, uint total, 
-                                                                    uint claimed, bool expired, uint256 claimed_amount) {
-        RedPacket storage rp = redpacket_by_id[id];
-        Packed memory packed = rp.packed;
-        return (
-            address(uint160(unbox(packed.packed2, 64, 160))), 
-            unbox(packed.packed1, 128, 96), 
-            unbox(packed.packed2, 239, 15), 
-            unbox(packed.packed2, 224, 15), 
-            block.timestamp > unbox(packed.packed1, 224, 32), 
-            rp.claimed_list[msg.sender]
-        );
-    }
-
     function _leaf(address account) internal pure returns (bytes32){
         return keccak256(abi.encodePacked(account));
     }
 
-    function refund(bytes32 id) public {
-        RedPacket storage rp = redpacket_by_id[id];
-        Packed memory packed = rp.packed;
-        address creator = rp.creator;
-        require(creator == msg.sender, "Creator Only");
-        require(unbox(packed.packed1, 224, 32) <= block.timestamp, "Not expired yet");
-        uint256 remaining_tokens = unbox(packed.packed1, 128, 96);
-        require(remaining_tokens != 0, "None left in the red packet");
-
-        uint256 token_type = unbox(packed.packed2, 254, 1);
-        address token_address = address(uint160(unbox(packed.packed2, 64, 160)));
-
-        rp.packed.packed1 = rewriteBox(packed.packed1, 128, 96, 0);
-
-        if (token_type == 0) {
-            payable(msg.sender).transfer(remaining_tokens);
-        }
-        else if (token_type == 1) {
-            transfer_token(token_address, msg.sender, remaining_tokens);
-        }
-
-        emit RefundSuccess(id, token_address, remaining_tokens, rp.lock);
-    }
 
 //------------------------------------------------------------------
     /**
