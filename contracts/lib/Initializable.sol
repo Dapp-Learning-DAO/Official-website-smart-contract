@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.0;
 
-import "./Address.sol";
+import './Address.sol';
 
 /**
  * @dev This is a base contract to aid in writing upgradeable contracts, or any kind of contract that will be deployed
@@ -50,7 +50,10 @@ abstract contract Initializable {
         // If the contract is initializing we ignore whether _initialized is set in order to support multiple
         // inheritance patterns, but we only do this in the context of a constructor, because in other contexts the
         // contract may have been reentered.
-        require(_initializing ? _isConstructor() : !_initialized, "Initializable: contract is already initialized");
+        require(
+            _initializing ? _isConstructor() : !_initialized,
+            'Initializable: contract is already initialized'
+        );
 
         bool isTopLevelCall = !_initializing;
         if (isTopLevelCall) {
@@ -70,7 +73,7 @@ abstract contract Initializable {
      * {initializer} modifier, directly or indirectly.
      */
     modifier onlyInitializing() {
-        require(_initializing, "Initializable: contract is not initializing");
+        require(_initializing, 'Initializable: contract is not initializing');
         _;
     }
 
