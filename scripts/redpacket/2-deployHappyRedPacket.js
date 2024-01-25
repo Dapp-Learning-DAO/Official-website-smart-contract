@@ -13,14 +13,22 @@ async function main() {
 
   console.log('Account balance:', (await deployer.getBalance()).toString());
 
+
+
   const redPacketFactory = await ethers.getContractFactory('HappyRedPacket');
   const redPacket = await redPacketFactory.deploy();
   await redPacket.deployed();
 
   console.log('RedPacket address:', redPacket.address);
 
+  const groth16VerifierFactory = await ethers.getContractFactory('Groth16Verifier');
+  const groth16Verifier = await groth16VerifierFactory.deploy();
+  await groth16Verifier.deployed();
+  console.log('Groth16Verifier address:', groth16Verifier.address);
+
+
   // Init red packet
-  let initRecipt = await redPacket.initialize({
+  let initRecipt = await redPacket.initialize(groth16Verifier.address, {
     // sometimes it will be fail if not
     gasLimit: 1483507
   });
@@ -36,6 +44,7 @@ async function main() {
 
   // verify contract
   await verifyContract("redPacketAddress");
+ 
 }
 
 // We recommend this pattern to be able to use async/await everywhere

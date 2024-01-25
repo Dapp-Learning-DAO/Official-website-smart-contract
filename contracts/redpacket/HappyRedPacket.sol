@@ -9,7 +9,7 @@ import '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
 import '@openzeppelin/contracts/utils/math/Math.sol';
 import '@openzeppelin/contracts/utils/cryptography/MerkleProof.sol';
 
-contract HappyRedPacket is Initializable, Groth16Verifier {
+contract HappyRedPacket is Initializable {
     struct RedPacket {
         Packed packed;
         mapping(address => uint256) claimed_list;
@@ -49,12 +49,15 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
 
     using SafeERC20 for IERC20;
     uint32 public nonce;
-    mapping(bytes32 => RedPacket) redpacket_by_id;
+    mapping(bytes32 => RedPacket) public redpacket_by_id;
     bytes32 private seed;
+
+    Groth16Verifier public verifier;
     uint256 constant MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
 
-    function initialize() public initializer {
+    function initialize(address _verifier) public initializer {
         seed = keccak256(abi.encodePacked('Dapp Learning Redpacket', block.timestamp, msg.sender));
+        verifier = Groth16Verifier(_verifier);
     }
 
     // Inits a red packet instance
@@ -152,7 +155,10 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
         uint256[1] memory input;
         input[0] = uint256(rp.lock);
 
-        require(verifyProof(_pA, _pB, _pC, input), 'ZK Verification failed, wrong password');
+        require(
+            verifier.verifyProof(_pA, _pB, _pC, input),
+            'ZK Verification failed, wrong password'
+        );
 
         claimed = _claim(_id, proof);
     }
