@@ -49,7 +49,7 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
 
     using SafeERC20 for IERC20;
     uint32 public nonce;
-    mapping(bytes32 => RedPacket) redpacket_by_id;
+    mapping(bytes32 => RedPacket)public  redpacket_by_id;
     bytes32 private seed;
     uint256 constant MASK = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF;
 
@@ -152,7 +152,7 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
         uint256[1] memory input;
         input[0] = uint256(rp.lock);
 
-        require(verifyProof(_pA, _pB, _pC, input), 'ZK Verification failed, wrong password');
+        require(this.verifyProof(_pA, _pB, _pC, input), 'ZK Verification failed, wrong password');
 
         claimed = _claim(_id, proof);
     }
