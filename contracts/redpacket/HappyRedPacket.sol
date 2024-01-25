@@ -118,7 +118,7 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
 
     // It takes the signed msg.sender message as verification passcode
     function claim(bytes32 _id, bytes32[] memory proof) 
-    public returns (uint claimed) {
+    internal returns (uint claimed) {
 
         bytes32 id = _id;
         RedPacket storage rp = redpacket_by_id[id];
@@ -179,15 +179,28 @@ contract HappyRedPacket is Initializable, Groth16Verifier {
     }
 
 
+   function claimOrdinaryRedpacket(bytes32 _id, bytes32[] memory proof) 
+    public returns (uint claimed) {
+
+        RedPacket storage rp = redpacket_by_id[_id];
+        require(rp.lock == bytes32(0), "Not ordinary redpacket");
+
+         claimed = _claim(_id, proof);
+
+        
+    }
+
     function claimPasswordRedpacket(bytes32 _id, bytes32[] memory proof, uint[2] calldata _pA, uint[2][2] calldata _pB, uint[2] calldata _pC) 
     public returns (uint claimed) {
 
         RedPacket storage rp = redpacket_by_id[_id];
+        require(rp.lock != bytes32(0), "Not password redpacket");
          uint256[1] memory input;
          input[0] = uint256(rp.lock);
+  
          require(verifyProof(_pA, _pB, _pC, input), "ZK Verification failed, wrong password");
     
-         claimed = claim(_id, proof);
+         claimed = _claim(_id, proof);
 
         
     }
