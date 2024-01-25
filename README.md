@@ -10,4 +10,7 @@ npx hardhat  compile
 
 npx hardhat run scripts/redpacket/2-deployHappyRedPacket.js --network sepolia
 
+
+npm run format
+
 ```

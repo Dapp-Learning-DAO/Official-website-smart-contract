@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import '@openzeppelin/contracts/token/ERC20/ERC20.sol';
 
 contract SimpleToken is ERC20 {
     /**
@@ -22,7 +22,7 @@ contract SimpleToken is ERC20 {
         uint256 initial_supply
     ) ERC20(name, symbol) {
         _decimals = decimals_;
-        INITIAL_SUPPLY = initial_supply * (10**uint256(decimals_));
-        _mint(msg.sender, initial_supply * (10**uint256(decimals_)));
+        INITIAL_SUPPLY = initial_supply * (10 ** uint256(decimals_));
+        _mint(msg.sender, initial_supply * (10 ** uint256(decimals_)));
     }
 }
