@@ -2,12 +2,13 @@ const { ethers } = require("hardhat");
 const { parseUnits, keccak256, encodePacked, toHex } = require("viem");
 
 const { expect } = require("chai");
-const path = require("path");
-const fs = require("fs");
 const MerkleTree = require("./merkle-tree");
-const { hashToken, convertZKSnarkCallData } = require("./utils/index.js");
-const { buildPoseidon } = require("circomlibjs");
-const snarkjs = require("snarkjs");
+const {
+    hashToken,
+    convertZKSnarkCallData,
+    calculatePublicSignals,
+    calculateZKProof,
+} = require("./utils/index.js");
 const { utils } = require("ethers");
 
 const ZERO_BYTES32 =
@@ -87,7 +88,7 @@ describe("redpacket", function () {
             ifrandom, // ifrandom
             1 * 24 * 60 * 60, // 1day
             message, // message
-            "Redpacket Name without password",
+            "Redpacket Name",
             1, // token_type
             erc20.address,
             total_tokens,
@@ -135,57 +136,6 @@ describe("redpacket", function () {
     });
 
     describe("ZK Redpacket", async () => {
-        const calculatePublicSignals = async (input) => {
-            const poseidon = await buildPoseidon();
-            const hash = poseidon.F.toString(poseidon([toHex(input)]));
-            return toHex(BigInt(hash), { size: 32 });
-        };
-
-        const calculateProof = async (input) => {
-            const proveRes = await snarkjs.groth16.fullProve(
-                { in: toHex(input) },
-                path.join(
-                    __dirname,
-                    "../zk-redpacket/build/datahash_js/datahash.wasm",
-                ),
-                path.join(__dirname, "../zk-redpacket/circuit_final.zkey"),
-            );
-
-            const vKey = JSON.parse(
-                fs.readFileSync(
-                    path.join(
-                        __dirname,
-                        "../zk-redpacket/verification_key.json",
-                    ),
-                ),
-            );
-            const checkRes = await snarkjs.groth16.verify(
-                vKey,
-                proveRes.publicSignals,
-                proveRes.proof,
-            );
-            if (checkRes) {
-                // console.log("snarkjs verify OK!");
-            } else {
-                throw "snarkjs verify faild!";
-            }
-
-            // console.log("calculateProof verify passed!");
-
-            // @remind 必须使用 exportSolidityCallData 方法转换，否则calldata顺序不对
-            const proof = convertZKSnarkCallData(
-                await snarkjs.groth16.exportSolidityCallData(
-                    proveRes.proof,
-                    proveRes.publicSignals,
-                ),
-            );
-
-            return {
-                proof: proof,
-                publicSignals: proveRes.publicSignals,
-            };
-        };
-
         it("create_red_packet() with password", async () => {
             const password = "This is a password";
             const hashLock = await calculatePublicSignals(password);
@@ -213,14 +163,14 @@ describe("redpacket", function () {
             const wrong_password = "This is a wrong password";
 
             const { proof: wrong_zkproof, publicSignals: wrong_publicSignals } =
-                await calculateProof(wrong_password);
+                await calculateZKProof(wrong_password);
 
             expect(toHex(BigInt(wrong_publicSignals[0]))).to.not.equal(
                 hashLock,
             );
 
             const { proof: correct_zkproof, publicSignals } =
-                await calculateProof(correct_password);
+                await calculateZKProof(correct_password);
 
             expect(toHex(BigInt(publicSignals[0]))).to.equal(hashLock);
 
