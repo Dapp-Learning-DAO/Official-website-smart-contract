@@ -2,12 +2,12 @@
 
 pragma solidity ^0.8.0;
 
-import "./IERC20.sol";
-import "../lib/TransferHelper.sol";
-import "./MerkleProof.sol";
-import "./IMerkleDistributor.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
-import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import './IERC20.sol';
+import '../lib/TransferHelper.sol';
+import './MerkleProof.sol';
+import './IMerkleDistributor.sol';
+import '@openzeppelin/contracts/access/Ownable.sol';
+import '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
 
 contract MerkleDistributor is IMerkleDistributor, Ownable, ReentrancyGuard {
     address public immutable override token;
@@ -42,9 +42,7 @@ contract MerkleDistributor is IMerkleDistributor, Ownable, ReentrancyGuard {
     function _setClaimed(uint256 index) private {
         uint256 claimedWordIndex = index / 256;
         uint256 claimedBitIndex = index % 256;
-        claimedBitMap[claimedWordIndex] =
-            claimedBitMap[claimedWordIndex] |
-            (1 << claimedBitIndex);
+        claimedBitMap[claimedWordIndex] = claimedBitMap[claimedWordIndex] | (1 << claimedBitIndex);
     }
 
     function claim(
@@ -52,14 +50,14 @@ contract MerkleDistributor is IMerkleDistributor, Ownable, ReentrancyGuard {
         uint256 amount,
         bytes32[] calldata merkleProof
     ) external override nonReentrant {
-        require(expireTime > block.timestamp, "Expired");
-        require(!isClaimed(index), "MerkleDistributor:already claimed");
+        require(expireTime > block.timestamp, 'Expired');
+        require(!isClaimed(index), 'MerkleDistributor:already claimed');
 
         // Verify the merkle proof.
         bytes32 node = keccak256(abi.encodePacked(index, msg.sender, amount));
         require(
             MerkleProof.verify(merkleProof, merkleRoot, node),
-            "MerkleDistributor: Invalid proof."
+            'MerkleDistributor: Invalid proof.'
         );
 
         // Mark it claimed and send the token.
@@ -69,11 +67,8 @@ contract MerkleDistributor is IMerkleDistributor, Ownable, ReentrancyGuard {
         emit Claimed(index, msg.sender, amount);
     }
 
-    function refund(
-        address _token,
-        address _to
-    ) external nonReentrant onlyOwner {
-        require(expireTime < block.timestamp, "Only expire");
+    function refund(address _token, address _to) external nonReentrant onlyOwner {
+        require(expireTime < block.timestamp, 'Only expire');
 
         uint256 amount = 0;
         if (address(0) == _token) {
@@ -87,11 +82,7 @@ contract MerkleDistributor is IMerkleDistributor, Ownable, ReentrancyGuard {
         emit Refund(_to, amount);
     }
 
-    function _sendToken(
-        address _token,
-        uint256 _amount,
-        address _recipient
-    ) private {
+    function _sendToken(address _token, uint256 _amount, address _recipient) private {
         if (_amount == 0) return;
         if (address(0) == _token) {
             TransferHelper.safeTransferETH(_recipient, _amount);
