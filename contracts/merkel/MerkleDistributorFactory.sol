@@ -8,15 +8,18 @@ import 'hardhat/console.sol';
 
 contract MerkleDistributorFactory is Ownable {
     // Keep track of all created distributors
-    mapping(string => MerkleDistributor) public redpacketByName;
+    mapping(bytes32 => MerkleDistributor) public redpacket_by_id;
 
     event DistributorCreated(
-        address indexed distributorAddress,
-        address indexed owner,
+        uint256 total,
+        bytes32 id,
         string name,
-        uint256 timestamp,
-        address token,
-        uint duration
+        string message,
+        address token_address,
+        uint256 number,
+        uint256 duration,
+        address creator,
+        uint256 creation_time
     );
 
     receive() external payable {}
@@ -24,52 +27,82 @@ contract MerkleDistributorFactory is Ownable {
     constructor() Ownable(msg.sender) {}
 
     function createDistributor(
-        address token,
+        uint256 number,
+        string memory message,
         string memory name,
+        address token,
         uint256 tokenTotal,
         bytes32 merkleRoot,
         uint256 duration
     ) public {
         require(address(0) != token, 'Token');
         require(tokenTotal > 0, 'TokenTotal');
-        MerkleDistributor distributor = _createDistributor(token, name, merkleRoot, duration);
+        MerkleDistributor distributor = _createDistributor(
+            number,
+            message,
+            name,
+            token,
+            merkleRoot,
+            duration,
+            tokenTotal
+        );
         TransferHelper.safeTransferFrom(token, msg.sender, address(distributor), tokenTotal);
     }
 
     function createDistributorWithEth(
+        uint256 number,
+        string memory message,
         string memory name,
         bytes32 merkleRoot,
         uint256 duration
     ) public payable {
         require(msg.value > 0, 'TotalAmount');
-        MerkleDistributor distributor = _createDistributor(address(0), name, merkleRoot, duration);
+        MerkleDistributor distributor = _createDistributor(
+            number,
+            message,
+            name,
+            address(0),
+            merkleRoot,
+            duration,
+            msg.value
+        );
         TransferHelper.safeTransferETH(address(distributor), msg.value);
     }
 
     function _createDistributor(
-        address token,
+        uint256 number,
+        string memory message,
         string memory name,
+        address token,
         bytes32 merkleRoot,
-        uint256 duration
-    ) private returns (MerkleDistributor) {
-        require(address(redpacketByName[name]) == address(0), 'Duplicate name');
-        MerkleDistributor distributor = new MerkleDistributor(
+        uint256 duration,
+        uint256 tokenTotal
+    ) private returns (MerkleDistributor distributor) {
+        bytes32 id = keccak256(abi.encodePacked(msg.sender, message));
+
+        require(address(redpacket_by_id[id]) == address(0), 'Distributor already exists');
+        distributor = new MerkleDistributor(
+            number,
+            message,
+            name,
             token,
             merkleRoot,
             duration,
             msg.sender
         );
 
-        redpacketByName[name] = distributor;
+        redpacket_by_id[id] = distributor;
         emit DistributorCreated(
-            address(distributor),
-            msg.sender,
+            tokenTotal,
+            id,
             name,
-            block.timestamp,
+            message,
             token,
-            duration
+            number,
+            duration,
+            msg.sender,
+            block.timestamp
         );
-        return distributor;
     }
 
     function ownerWithdraw(address _token, uint256 _amount, address _recipient) external onlyOwner {

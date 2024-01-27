@@ -4,12 +4,15 @@ pragma solidity ^0.8.0;
 
 import './IERC20.sol';
 import '../lib/TransferHelper.sol';
+import '../interface/IMerkleDistributor.sol';
 import './MerkleProof.sol';
-import './IMerkleDistributor.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
 
 contract MerkleDistributor is IMerkleDistributor, Ownable, ReentrancyGuard {
+    uint256 public immutable override number;
+    string public override message;
+    string public override name;
     address public immutable override token;
     bytes32 public immutable override merkleRoot;
     uint256 public expireTime;
@@ -21,11 +24,17 @@ contract MerkleDistributor is IMerkleDistributor, Ownable, ReentrancyGuard {
     receive() external payable {}
 
     constructor(
+        uint256 _number,
+        string memory _message,
+        string memory _name,
         address _token,
         bytes32 _merkleRoot,
         uint256 _duration,
         address _owner
     ) Ownable(_owner) {
+        number = _number;
+        message = _message;
+        name = _name;
         token = _token;
         merkleRoot = _merkleRoot;
         expireTime = block.timestamp + _duration;
@@ -76,8 +85,8 @@ contract MerkleDistributor is IMerkleDistributor, Ownable, ReentrancyGuard {
         } else {
             amount = IERC20(_token).balanceOf(address(this));
         }
+        require(amount > 0, 'No fund');
 
-        if (amount == 0) return;
         _sendToken(_token, amount, _to);
         emit Refund(_to, amount);
     }

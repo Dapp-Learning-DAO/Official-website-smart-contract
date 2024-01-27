@@ -3,7 +3,7 @@ const { ethers } = require('hardhat');
 const keccak256 = require('keccak256');
 const { expect } = require('chai');
 const fs =require('fs');
-//const tokens = require('./tokens.json');
+const tokens = require('./tokens.json');
 
 async function deploy(name, ...params) {
   const Contract = await ethers.getContractFactory(name);
