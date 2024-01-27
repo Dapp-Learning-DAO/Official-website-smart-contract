@@ -26,7 +26,7 @@ async function main() {
   const [deployer, user1, user2] = await ethers.getSigners();
   const deployment = readMerkleDistributorDeployment();
 
-  const merkleDistributorAddress = "0x5CBE96445F2de87f396018306cA30d3b7799E7c2";//read from deployment.json
+  const merkleDistributorAddress = deployment.MerkleDistributor;//read from deployment.json
   const simpleToken = await ethers.getContractAt('SimpleToken', deployment.simpleTokenAddress, deployer);
   const merkleDistributor = await ethers.getContractAt('MerkleDistributor', merkleDistributorAddress, deployer);
 

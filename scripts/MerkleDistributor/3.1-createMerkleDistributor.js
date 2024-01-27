@@ -38,10 +38,6 @@ async function main() {
   const merkleDistributorFactory = await ethers.getContractAt('MerkleDistributorFactory', merkleDistributorFactoryAddress, deployer);
   const simpleToken = await ethers.getContractAt('SimpleToken', simpleTokenAddress, deployer);
 
-
-
-  console.log('Approve Successfully');
-
   let balances = new Array();
   for (const [key, value] of Object.entries(claimerList)) {
     balances.push({ account: key, amount: value });
@@ -69,6 +65,8 @@ async function main() {
   let tx = await simpleToken.approve(merkleDistributorFactoryAddress, totalTokens);
   await tx.wait();
 
+  console.log('Approve Successfully');
+
   let createDistributorRecipt = await merkleDistributorFactory.createDistributor(...params, {
     // sometimes it will be fail if not specify the gasLimit
     // gasLimit: 1483507
@@ -84,7 +82,7 @@ async function main() {
   //query
   let id = ethers.utils.solidityKeccak256(['address', 'string'], [deployer.address, message]);
   let distributorErc20Address = await merkleDistributorFactory.redpacket_by_id(id);
-  saveMerkleDistributorDeployment({ [id]: `${distributorErc20Address}=>${totalTokens.toString()}` });
+  saveMerkleDistributorDeployment({ MerkleDistributor: distributorErc20Address });
   console.log(`CreationSuccess, totalTokens: ${totalTokens.toString()}\tMerkleDistributorId: ${id}  distributorErc20Address:${distributorErc20Address}`);
 
   console.log('Create MerkleDistributor successfully');
