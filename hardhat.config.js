@@ -30,6 +30,10 @@ module.exports = {
         (you can put in a mnemonic here to set the deployer locally)
       */
     },
+    mumbaiTest: {
+      url: "https://polygon-testnet.public.blastapi.io",
+      accounts: mnemonic(),
+    },
     mainnet: {
       url: "https://mainnet.infura.io/v3/" + process.env.INFURA_ID, //<---- YOUR INFURA ID! (or it won't work)
       accounts: mnemonic(),

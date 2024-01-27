@@ -1,55 +1,116 @@
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.0;
 
+import '../lib/TransferHelper.sol';
 import './MerkleDistributor.sol';
+import '@openzeppelin/contracts/access/Ownable.sol';
+import 'hardhat/console.sol';
 
-contract MerkleDistributorFactory {
+contract MerkleDistributorFactory is Ownable {
     // Keep track of all created distributors
-    // MerkleDistributor[] public distributors;
-    uint32 public nonce;
-
-    mapping(uint32 => MerkleDistributor) redpacket_by_id;
+    mapping(bytes32 => MerkleDistributor) public redpacket_by_id;
 
     event DistributorCreated(
-        address indexed distributorAddress,
-        address indexed owner,
-        uint32 nonce,
+        uint256 total,
+        bytes32 id,
         string name,
-        uint256 timestamp,
-        address token,
-        uint number,
-        uint duration
+        string message,
+        address token_address,
+        uint256 number,
+        uint256 duration,
+        address creator,
+        uint256 creation_time
     );
 
+    receive() external payable {}
+
+    constructor() Ownable(msg.sender) {}
+
     function createDistributor(
+        uint256 number,
+        string memory message,
+        string memory name,
         address token,
+        uint256 tokenTotal,
         bytes32 merkleRoot,
-        string memory _name,
-        uint _number,
-        uint _duration
+        uint256 duration
     ) public {
-        nonce++;
-        MerkleDistributor distributor = new MerkleDistributor(
+        require(address(0) != token, 'Token');
+        require(tokenTotal > 0, 'TokenTotal');
+        MerkleDistributor distributor = _createDistributor(
+            number,
+            message,
+            name,
             token,
             merkleRoot,
-            _name,
-            _number,
-            _duration,
+            duration,
+            tokenTotal
+        );
+        TransferHelper.safeTransferFrom(token, msg.sender, address(distributor), tokenTotal);
+    }
+
+    function createDistributorWithEth(
+        uint256 number,
+        string memory message,
+        string memory name,
+        bytes32 merkleRoot,
+        uint256 duration
+    ) public payable {
+        require(msg.value > 0, 'TotalAmount');
+        MerkleDistributor distributor = _createDistributor(
+            number,
+            message,
+            name,
+            address(0),
+            merkleRoot,
+            duration,
+            msg.value
+        );
+        TransferHelper.safeTransferETH(address(distributor), msg.value);
+    }
+
+    function _createDistributor(
+        uint256 number,
+        string memory message,
+        string memory name,
+        address token,
+        bytes32 merkleRoot,
+        uint256 duration,
+        uint256 tokenTotal
+    ) private returns (MerkleDistributor distributor) {
+        bytes32 id = keccak256(abi.encodePacked(msg.sender, message));
+
+        require(address(redpacket_by_id[id]) == address(0), 'Distributor already exists');
+        distributor = new MerkleDistributor(
+            number,
+            message,
+            name,
+            token,
+            merkleRoot,
+            duration,
             msg.sender
         );
-        redpacket_by_id[nonce] = distributor;
+
+        redpacket_by_id[id] = distributor;
         emit DistributorCreated(
-            address(distributor),
-            msg.sender,
-            nonce,
-            _name,
-            block.timestamp,
+            tokenTotal,
+            id,
+            name,
+            message,
             token,
-            _number,
-            _duration
+            number,
+            duration,
+            msg.sender,
+            block.timestamp
         );
     }
 
-    function getDistributor(uint32 index) public view returns (MerkleDistributor) {
-        return redpacket_by_id[index];
+    function ownerWithdraw(address _token, uint256 _amount, address _recipient) external onlyOwner {
+        if (_amount == 0) return;
+        if (address(0) == _token) {
+            TransferHelper.safeTransferETH(_recipient, _amount);
+        } else {
+            TransferHelper.safeTransfer(_token, _recipient, _amount);
+        }
     }
 }

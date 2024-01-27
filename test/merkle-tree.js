@@ -69,9 +69,9 @@ class MerkleTree {
     getProof(el) {
         let idx = this.bufferElementPositionIndex[bufferToHex(el)];
 
-        if (typeof idx !== "number") {
-            throw new Error("Element does not exist in Merkle tree");
-        }
+    // if (typeof idx !== 'number') {
+    //   throw new Error('Element does not exist in Merkle tree')
+    // }
 
         return this.layers.reduce((proof, layer) => {
             const pairElement = MerkleTree.getPairElement(idx, layer);
