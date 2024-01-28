@@ -1,10 +1,12 @@
 // read and save redpacket contract deployment json file
 const path = require("path");
 const fs = require("fs");
+const { network } = require('hardhat');
 
+const currentNamework = network.name
 const DEPLOYMENGT_DIR = path.join(
   __dirname,
-  "/scripts/redpacket/deployment.json"
+  "/scripts/redpacket/" + currentNamework + "-deployment.json"
 );
 
 /*
@@ -14,7 +16,7 @@ const DEPLOYMENGT_DIR = path.join(
  *   redPacketID
  *   simpleTokenAddress
  */
-function readRedpacketDeployment() {
+function readRedpacketDeployment(networkName) {
   if (!fs.existsSync(DEPLOYMENGT_DIR)) return null;
   try {
     return JSON.parse(fs.readFileSync(DEPLOYMENGT_DIR, { encoding: "utf-8" }));
@@ -23,8 +25,8 @@ function readRedpacketDeployment() {
   }
 }
 
-function saveRedpacketDeployment(payload) {
-  let oldData = readRedpacketDeployment();
+function saveRedpacketDeployment(payload,networkName) {
+  let oldData = readRedpacketDeployment(networkName);
   if (!oldData) oldData = {};
   fs.writeFileSync(
     DEPLOYMENGT_DIR,
