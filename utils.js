@@ -16,7 +16,7 @@ const DEPLOYMENGT_DIR = path.join(
  *   redPacketID
  *   simpleTokenAddress
  */
-function readRedpacketDeployment(networkName) {
+function readRedpacketDeployment() {
   if (!fs.existsSync(DEPLOYMENGT_DIR)) return null;
   try {
     return JSON.parse(fs.readFileSync(DEPLOYMENGT_DIR, { encoding: "utf-8" }));
@@ -25,8 +25,8 @@ function readRedpacketDeployment(networkName) {
   }
 }
 
-function saveRedpacketDeployment(payload,networkName) {
-  let oldData = readRedpacketDeployment(networkName);
+function saveRedpacketDeployment(payload) {
+  let oldData = readRedpacketDeployment();
   if (!oldData) oldData = {};
   fs.writeFileSync(
     DEPLOYMENGT_DIR,
