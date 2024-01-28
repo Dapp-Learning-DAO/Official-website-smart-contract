@@ -1,10 +1,13 @@
 // read and save MerkleDistributor contract deployment json file
 const path = require("path");
 const fs = require("fs");
+const { network } = require('hardhat');
+
+const currentNamework = network.name
 
 const DEPLOYMENGT_DIR = path.join(
   __dirname,
-  "/deployment.json"
+  "/" + currentNamework + "-deployment.json"
 );
 
 /*
