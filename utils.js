@@ -1,10 +1,12 @@
 // read and save redpacket contract deployment json file
 const path = require("path");
 const fs = require("fs");
+const { network } = require('hardhat');
 
+const currentNamework = network.name
 const DEPLOYMENGT_DIR = path.join(
   __dirname,
-  "/scripts/redpacket/deployment.json"
+  "/scripts/redpacket/" + currentNamework + "-deployment.json"
 );
 
 /*
