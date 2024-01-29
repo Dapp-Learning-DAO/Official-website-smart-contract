@@ -14,3 +14,5 @@ node_modules
 /coverage
 /coverage.json
 **/*deployment.json
+**/claimerList.json
+**/deployment.json
