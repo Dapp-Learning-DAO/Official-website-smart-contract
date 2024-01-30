@@ -40,13 +40,23 @@ function saveRedpacketDeployment(payload) {
 }
 
 async function verifyContract(
-  contractName,
+  contractNameOrAddress,
   network = hre.network.name,
   constructorArguments = null
 ) {
-  const data = fs.readFileSync(DEPLOYMENGT_DIR, "utf8");
-  const addresses = JSON.parse(data);
-  const address = addresses[contractName];
+  if (network == "hardhat") {
+    console.log("hardhat network skip verifyContract");
+    return;
+  }
+
+  let address;
+  if (isAddress(contractNameOrAddress)) {
+    address = contractNameOrAddress;
+  } else {
+    const data = fs.readFileSync(DEPLOYMENGT_DIR, "utf8");
+    const addresses = JSON.parse(data);
+    address = addresses[contractNameOrAddress];
+  }
 
   if (!address) {
     console.error("verifyContract error: Contract depoloyment not found.");
@@ -70,8 +80,13 @@ async function verifyContract(
   }
 }
 
+function isAddress(str) {
+  return /^0x[a-fA-F0-9]{40}$/.test(str);
+}
+
 module.exports = {
   DEPLOYMENGT_DIR,
+  isAddress,
   verifyContract,
   readRedpacketDeployment,
   saveRedpacketDeployment,

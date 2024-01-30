@@ -38,10 +38,6 @@ module.exports = {
       url: "https://mainnet.infura.io/v3/" + process.env.INFURA_ID, //<---- YOUR INFURA ID! (or it won't work)
       accounts: mnemonic(),
     },
-    ropsten: {
-      url: "https://ropsten.infura.io/v3/" + process.env.INFURA_ID, //<---- YOUR INFURA ID! (or it won't work)
-      accounts: mnemonic(),
-    },
     sepolia: {
       url: "https://sepolia.infura.io/v3/" + process.env.INFURA_ID, //<---- YOUR INFURA ID! (or it won't work)
       accounts: mnemonic(),
@@ -54,13 +50,27 @@ module.exports = {
       url: "https://optimism-mainnet.infura.io/v3/" + process.env.INFURA_ID,
       accounts: mnemonic(),
     },
-    Sepolia: {
-      url: "https://sepolia.infura.io/v3/" + process.env.INFURA_ID,
+    scroll: {
+      url: "https://rpc.scroll.io/",
       accounts: mnemonic(),
     },
   },
   etherscan: {
-    apiKey: process.env.EHTERSCAN_KEY,
+    apiKey: {
+      mainnet: process.env.EHTERSCAN_KEY,
+      sepolia: process.env.EHTERSCAN_KEY,
+      scroll: process.env.SCROLLSCAN_KEY,
+    },
+    customChains: [
+      {
+        network: "scroll",
+        chainId: 534352,
+        urls: {
+          apiURL: "https://api.scrollscan.com/api",
+          browserURL: "https://scrollscan.com/"
+        }
+      }
+    ]
   },
   sourcify: {
     // Disabled by default
