@@ -10,6 +10,7 @@ const keccak256 = require('keccak256');
 const { readRedpacketDeployment, saveRedpacketDeployment } = require('../../utils');
 const claimerList = require('./claimerList.json');
 
+
 function hashToken(account) {
   return Buffer.from(ethers.utils.solidityKeccak256(['address'], [account]).slice(2), 'hex');
 }
@@ -27,6 +28,10 @@ async function sleep() {
   }
   if (!endSleep) console.log(`\nhad slept too long, but no result...`);
 }
+
+// zero bytes
+const ZERO_BYTES32 =
+    "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -54,6 +59,7 @@ async function main() {
   // create_red_packet
   let creationParams = {
     _merkleroot: merkleTreeRoot,
+    _lock: ZERO_BYTES32,
     _number: 2,
     _ifrandom: true,
     _duration: 259200, // 259200
@@ -65,7 +71,7 @@ async function main() {
     _total_tokens:  100
   };
 
-  redPacket.once('CreationSuccess', (id, total, name, message, creator, creation_time, token_address, number, ifrandom, duration) => {
+  redPacket.once('CreationSuccess', (total, id, name, message, creator, creation_time, token_address, number, ifrandom, duration,ZERO_BYTES32) => {
     endSleep = true;
     saveRedpacketDeployment({ redPacketID: id, redPacketTotal: total.toString() });
     console.log(`CreationSuccess Event, total: ${total.toString()}\tRedpacketId: ${id}  `);
