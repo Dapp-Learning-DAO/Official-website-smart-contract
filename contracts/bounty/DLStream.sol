@@ -7,7 +7,7 @@ import {ISablierV2LockupLinear} from "@sablier/v2-core/src/interfaces/ISablierV2
 import {ISablierV2LockupDynamic} from "@sablier/v2-core/src/interfaces/ISablierV2LockupDynamic.sol";
 import {Broker, LockupLinear, LockupDynamic, Lockup} from "@sablier/v2-core/src/types/DataTypes.sol";
 
-contract DlStream {
+contract DLStream {
     uint256 public _dlStreamId;
     address public owner;
 

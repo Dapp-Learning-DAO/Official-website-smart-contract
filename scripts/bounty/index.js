@@ -8,7 +8,7 @@ async function main() {
     const chainId = await ethers.provider.getNetwork().then(network => network.chainId);
     const contracts = deployments[chainId];
     const token = "0x016b496974422684ac4474d1d8b75a16b02c14cd";
-    const DLStreamContract = await ethers.getContractAt("DlStream", contracts.dl);
+    const DLStreamContract = await ethers.getContractAt("DLStream", contracts.dl);
 
     // await DLStreamContract.setOwner(signer.address);
 

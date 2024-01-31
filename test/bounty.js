@@ -28,8 +28,8 @@ describe("Test DLStream", function () {
         const DLSablierV2LockupLinear = await ethers.getContractFactory("DLSablierV2LockupLinear");
         DLSablierV2LockupLinearContract = await DLSablierV2LockupLinear.deploy(owner.address, DLSablierV2ComptrollerContract.address, DLSablierV2NFTDescriptorContract.address);
 
-        const DlStream = await ethers.getContractFactory("DlStream");
-        DLStreamContract = await DlStream.deploy(owner.address, DLSablierV2LockupLinearContract.address, DLSablierV2LockupLinearContract.address);
+        const DLStream = await ethers.getContractFactory("DLStream");
+        DLStreamContract = await DLStream.deploy(owner.address, DLSablierV2LockupLinearContract.address, DLSablierV2LockupLinearContract.address);
     });
 
     it("setOwner", async function () {
