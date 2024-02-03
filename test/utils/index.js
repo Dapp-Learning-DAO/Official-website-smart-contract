@@ -5,16 +5,6 @@ const path = require("path");
 const fs = require("fs");
 const snarkjs = require("snarkjs");
 
-const AddressZero = "0x0000000000000000000000000000000000000000";
-
-async function deployContract(name, params) {
-  const contract = await hre.ethers.deployContract(name, params);
-  await contract.waitForDeployment();
-  // @todo 临时处理
-  contract.address = contract.target;
-  return contract;
-}
-
 function hashToken(account) {
   return Buffer.from(
     keccak256(encodePacked(["address"], [account])).slice(2),
@@ -90,8 +80,6 @@ const calculateZKProof = async (input) => {
 };
 
 module.exports = {
-  AddressZero,
-  deployContract,
   hashToken,
   convertZKSnarkCallData,
   calculatePublicSignals,

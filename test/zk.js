@@ -5,7 +5,7 @@ const { buildPoseidonOpt } = require("circomlibjs");
 //const {circomlibjs} = require('circomlibjs');
 const snarkjs = require("snarkjs");
 const fs = require("fs");
-const { deployContract } = require("./utils");
+const { deployContract } = require("../utils");
 const wasm_tester = require("circom_tester").wasm;
 
 describe("verify hash", () => {

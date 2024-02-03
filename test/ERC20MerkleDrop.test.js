@@ -4,7 +4,7 @@ const BalanceTree = require("./balance-tree.js");
 const { keccak256, encodePacked, getAddress } = require("viem");
 const { expect } = require("chai");
 const fs = require("fs");
-const { deployContract, AddressZero } = require("./utils/index.js");
+const { deployContract, AddressZero } = require("../utils");
 //const tokens = require('./tokens.json');
 
 let repackMessage = "MyRedPacket";
