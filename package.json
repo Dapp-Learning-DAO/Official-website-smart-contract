@@ -23,6 +23,10 @@
         "viem": "^2.5.0"
     },
     "lint-staged": {
-        "*.sol": "prettier --write"
+        "*.sol": "prettier --write --plugin=prettier-plugin-solidity",
+        "*.{json,md}": "prettier --write",
+        "*.{js,jsx,ts,tsx}": [
+            "prettier --write"
+        ]
     }
 }
