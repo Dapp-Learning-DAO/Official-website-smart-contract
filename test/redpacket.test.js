@@ -4,6 +4,7 @@ const { parseUnits, keccak256, encodePacked, toHex } = require("viem");
 const { expect } = require("chai");
 const MerkleTree = require("./merkle-tree");
 const {
+    deployContract,
     hashToken,
     convertZKSnarkCallData,
     calculatePublicSignals,
@@ -13,13 +14,6 @@ const { utils } = require("ethers");
 
 const ZERO_BYTES32 =
     "0x0000000000000000000000000000000000000000000000000000000000000000";
-
-async function deploy(name, deployer, ...params) {
-    const Contract = await ethers.getContractFactory(name);
-    return await Contract.connect(deployer)
-        .deploy(...params)
-        .then((f) => f.deployed());
-}
 
 describe("redpacket", function () {
     let treeRoot;
@@ -34,14 +28,12 @@ describe("redpacket", function () {
     beforeEach(async function () {
         const total_supply = parseUnits("1000000", 18);
         [owner, alice, bob] = await ethers.getSigners();
-        erc20 = await deploy(
-            "SimpleToken",
-            owner,
+        erc20 = await deployContract("SimpleToken", [
             "AAA token",
             "AAA",
             18,
             total_supply,
-        );
+        ]);
 
         merkleTree = new MerkleTree(
             [owner, alice, bob].map((user) => hashToken(user.address)),
@@ -53,8 +45,8 @@ describe("redpacket", function () {
         treeRoot = merkleTree.getHexRoot().toString("hex");
         // console.log("MerkleTree root", treeRoot);
 
-        groth16Verifier = await deploy("Groth16Verifier", owner);
-        redPacket = await deploy("HappyRedPacket", owner);
+        groth16Verifier = await deployContract("Groth16Verifier");
+        redPacket = await deployContract("HappyRedPacket");
 
         // Init red packet
         let initTx = await redPacket.initialize(groth16Verifier.address, {
@@ -79,7 +71,7 @@ describe("redpacket", function () {
         message = "some message",
     ) {
         const name = "Redpacket Name";
-        const total_tokens = utils.parseUnits(totalAmount, 18);
+        const total_tokens = parseUnits(totalAmount, 18);
         const redpacketId = keccak256(
             encodePacked(["address", "string"], [owner.address, message]),
         );
@@ -138,7 +130,7 @@ describe("redpacket", function () {
                     erc20.address,
                     2, // total_tokens
                 ),
-            ).to.revertedWith("tokens > #packets");
+            ).to.revertedWith("#tokens > #packets");
 
             await expect(
                 redPacket.connect(owner).create_red_packet(
@@ -151,7 +143,7 @@ describe("redpacket", function () {
                     "Redpacket Name",
                     1, // token_type
                     erc20.address,
-                    utils.parseUnits("300", 18), // total_tokens
+                    parseUnits("300", 18), // total_tokens
                 ),
             ).to.revertedWith("At least 1 recipient");
 
@@ -166,7 +158,7 @@ describe("redpacket", function () {
                     "Redpacket Name",
                     1, // token_type
                     erc20.address,
-                    utils.parseUnits("300", 18), // total_tokens
+                    parseUnits("300", 18), // total_tokens
                 ),
             ).to.revertedWith("At most 511 recipients");
 
@@ -181,7 +173,7 @@ describe("redpacket", function () {
                     "Redpacket Name",
                     2, // token_type
                     erc20.address,
-                    utils.parseUnits("300", 18), // total_tokens
+                    parseUnits("300", 18), // total_tokens
                 ),
             ).to.revertedWith("Unrecognizable token type");
 
@@ -196,7 +188,7 @@ describe("redpacket", function () {
                     "Redpacket Name",
                     1, // token_type
                     erc20.address,
-                    utils.parseUnits("0.3", 18), // total_tokens
+                    parseUnits("0.3", 18), // total_tokens
                 ),
             ).to.revertedWith("At least 0.1 for each user");
 
@@ -211,7 +203,7 @@ describe("redpacket", function () {
                     "Redpacket Name",
                     0, // token_type
                     erc20.address,
-                    utils.parseUnits("3", 18), // total_tokens
+                    parseUnits("3", 18), // total_tokens
                 ),
             ).to.revertedWith("No enough ETH");
 
@@ -232,7 +224,7 @@ describe("redpacket", function () {
                     "Redpacket Name",
                     1, // token_type
                     erc20.address,
-                    utils.parseUnits("300", 18), // total_tokens
+                    parseUnits("300", 18), // total_tokens
                 ),
             ).to.revertedWith("Redpacket already exists");
         });
@@ -286,17 +278,18 @@ describe("redpacket", function () {
                     .connect(user)
                     .claimOrdinaryRedpacket(redpacketId, merkleProof);
                 const afterBalance = await erc20.balanceOf(user.address);
-                expect(afterBalance.sub(beforeBalance)).to.equal(
-                    total_tokens.div(3),
+                expect(afterBalance - beforeBalance).to.equal(
+                    total_tokens / 3n,
                 );
 
                 await expect(
                     redPacket
                         .connect(user)
                         .claimOrdinaryRedpacket(redpacketId, merkleProof),
-                ).to.revertedWith(user !== bob ? "Already claimed" : "Out of stock");
+                ).to.revertedWith(
+                    user !== bob ? "Already claimed" : "Out of stock",
+                );
             }
-
         });
 
         it("refund(): Should refund after expired", async () => {
@@ -349,7 +342,7 @@ describe("redpacket", function () {
                 );
 
             const afterBalance = await erc20.balanceOf(owner.address);
-            expect(afterBalance.sub(beforeBalance)).to.equal(total_tokens);
+            expect(afterBalance - beforeBalance).to.equal(total_tokens);
         });
     });
 
@@ -426,7 +419,7 @@ describe("redpacket", function () {
 
             expect(toHex(BigInt(publicSignals[0]))).to.equal(hashLock);
 
-            const claimed_value = total_tokens.div(3);
+            const claimed_value = total_tokens / 3n;
 
             for (let user of [owner, alice, bob]) {
                 const beforeBalance = await erc20.balanceOf(user.address);
@@ -452,7 +445,7 @@ describe("redpacket", function () {
                     );
 
                 const afterBalance = await erc20.balanceOf(user.address);
-                expect(afterBalance.sub(beforeBalance)).to.equal(claimed_value);
+                expect(afterBalance - beforeBalance).to.equal(claimed_value);
             }
         });
 
@@ -476,7 +469,7 @@ describe("redpacket", function () {
                 .withArgs(redpacketId, erc20.address, total_tokens, hashLock);
 
             const afterBalance = await erc20.balanceOf(owner.address);
-            expect(afterBalance.sub(beforeBalance)).to.equal(total_tokens);
+            expect(afterBalance - beforeBalance).to.equal(total_tokens);
         });
     });
 });

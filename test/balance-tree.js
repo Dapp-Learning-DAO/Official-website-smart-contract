@@ -1,5 +1,5 @@
 const MerkleTree = require('./merkle-tree')
-const { BigNumber, utils } = require('ethers')
+const { keccak256, encodePacked } = require('viem')
 
  class BalanceTree {
 
@@ -29,7 +29,7 @@ const { BigNumber, utils } = require('ethers')
   // keccak256(abi.encode(index, account, amount))
   toNode(index, account, amount) {
     return Buffer.from(
-      utils.solidityKeccak256(['uint256', 'address', 'uint256'], [index, account, amount]).substr(2),
+      keccak256(encodePacked(['uint256', 'address', 'uint256'], [index, account, amount])).slice(2),
       'hex'
     )
   }

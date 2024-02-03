@@ -1,9 +1,19 @@
 const { encodePacked, keccak256, toHex } = require("viem");
 const { buildPoseidon } = require("circomlibjs");
+const hre = require("hardhat");
 const path = require("path");
 const fs = require("fs");
 const snarkjs = require("snarkjs");
 
+const AddressZero = "0x0000000000000000000000000000000000000000";
+
+async function deployContract(name, params) {
+    const contract = await hre.ethers.deployContract(name, params);
+    await contract.waitForDeployment();
+    // @todo 临时处理
+    contract.address = contract.target;
+    return contract
+}
 
 function hashToken(account) {
     return Buffer.from(
@@ -14,9 +24,7 @@ function hashToken(account) {
 
 function convertZKSnarkCallData(calldata) {
     // console.log("calldata origin", calldata);
-    const argv = calldata
-        .replace(/["[\]\s]/g, "")
-        .split(",");
+    const argv = calldata.replace(/["[\]\s]/g, "").split(",");
 
     //console.log("argv", argv);
 
@@ -54,10 +62,7 @@ const calculateZKProof = async (input) => {
 
     const vKey = JSON.parse(
         fs.readFileSync(
-            path.join(
-                __dirname,
-                "../../zk-redpacket/verification_key.json",
-            ),
+            path.join(__dirname, "../../zk-redpacket/verification_key.json"),
         ),
     );
     const checkRes = await snarkjs.groth16.verify(
@@ -88,6 +93,8 @@ const calculateZKProof = async (input) => {
 };
 
 module.exports = {
+    AddressZero,
+    deployContract,
     hashToken,
     convertZKSnarkCallData,
     calculatePublicSignals,

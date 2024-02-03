@@ -5,6 +5,7 @@ const {buildPoseidonOpt} = require('circomlibjs');
 //const {circomlibjs} = require('circomlibjs');
 const snarkjs = require('snarkjs');
 const fs = require('fs');
+const { deployContract } = require("./utils");
 const wasm_tester = require("circom_tester").wasm;
 
 describe('verify hash', ()=>{
@@ -15,9 +16,7 @@ describe('verify hash', ()=>{
         circuit = await wasm_tester(path.join(__dirname, "../zk-redpacket/circuits", "datahash.circom"));
         poseidon = await buildPoseidonOpt();
 
-        const groth16VerifierFactory = await ethers.getContractFactory('Groth16Verifier');
-        groth16Verifier = await groth16VerifierFactory.deploy();
-        await groth16Verifier.deployed();
+        groth16Verifier = await deployContract('Groth16Verifier');
         console.log('Groth16Verifier address:', groth16Verifier.address);
       
       
@@ -102,7 +101,7 @@ function convertCallData(calldata) {
     const argv = calldata
         .replace(/["[\]\s]/g, "")
         .split(",")
-        .map((x) => ethers.BigNumber.from(x).toString());
+        .map((x) => x.toString());
    
     //console.log("argv", argv);
 
