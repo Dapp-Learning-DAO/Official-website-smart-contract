@@ -1,12 +1,12 @@
 // read and save redpacket contract deployment json file
 const path = require("path");
 const fs = require("fs");
-const { network } = require('hardhat');
+const { network } = require("hardhat");
 
-const currentNamework = network.name
+const currentNamework = network.name;
 const DEPLOYMENGT_DIR = path.join(
   __dirname,
-  "/scripts/redpacket/" + currentNamework + "-deployment.json"
+  "/scripts/redpacket/" + currentNamework + "-deployment.json",
 );
 
 /*
@@ -34,7 +34,7 @@ function saveRedpacketDeployment(payload) {
       ...oldData,
       ...payload,
     }),
-    { flag: "w+" }
+    { flag: "w+" },
   );
   return true;
 }
@@ -42,7 +42,7 @@ function saveRedpacketDeployment(payload) {
 async function verifyContract(
   contractNameOrAddress,
   network = hre.network.name,
-  constructorArguments = null
+  constructorArguments = null,
 ) {
   if (network == "hardhat") {
     console.log("hardhat network skip verifyContract");

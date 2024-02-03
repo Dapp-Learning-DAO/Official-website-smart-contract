@@ -1,11 +1,12 @@
 # Official-website-smart-contract
 
 ## support network
-optimism , arbi , zksync ,scroll 
 
+optimism , arbi , zksync ,scroll
 
-## build 
-```
+## build
+
+```sh
 npx hardhat  compile
 
 npx hardhat run scripts/redpacket/2-deployHappyRedPacket.js --network sepolia
