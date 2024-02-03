@@ -5,13 +5,6 @@ const path = require("path");
 const fs = require("fs");
 const snarkjs = require("snarkjs");
 
-function hashToken(account) {
-  return Buffer.from(
-    keccak256(encodePacked(["address"], [account])).slice(2),
-    "hex",
-  );
-}
-
 function convertZKSnarkCallData(calldata) {
   // console.log("calldata origin", calldata);
   const argv = calldata.replace(/["[\]\s]/g, "").split(",");

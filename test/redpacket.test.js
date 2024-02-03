@@ -4,12 +4,11 @@ const { parseUnits, keccak256, encodePacked, toHex } = require("viem");
 const { expect } = require("chai");
 const MerkleTree = require("./merkle-tree");
 const {
-  hashToken,
   convertZKSnarkCallData,
   calculatePublicSignals,
   calculateZKProof,
 } = require("./utils/index.js");
-const { deployContract } = require("../utils");
+const { deployContract, hashToken } = require("../utils");
 
 const ZERO_BYTES32 =
   "0x0000000000000000000000000000000000000000000000000000000000000000";

@@ -2,11 +2,12 @@
 const path = require("path");
 const fs = require("fs");
 const hre = require("hardhat");
+const { encodePacked, keccak256, toHex } = require("viem");
 
 const currentNamework = hre.network.name;
 const DEPLOYMENGT_DIR = path.join(
   __dirname,
-  "/scripts/redpacket/" + currentNamework + "-deployment.json",
+  "../scripts/redpacket/" + currentNamework + "-deployment.json",
 );
 
 const AddressZero = "0x0000000000000000000000000000000000000000";
@@ -54,7 +55,7 @@ async function verifyContract(
   network = hre.network.name,
   constructorArguments = null,
 ) {
-  if (network == "hardhat") {
+  if (network == "hardhat" || network == "localhost") {
     console.log("hardhat network skip verifyContract");
     return;
   }
@@ -94,6 +95,13 @@ function isAddress(str) {
   return /^0x[a-fA-F0-9]{40}$/.test(str);
 }
 
+function hashToken(account) {
+  return Buffer.from(
+    keccak256(encodePacked(["address"], [account])).slice(2),
+    "hex",
+  );
+}
+
 module.exports = {
   AddressZero,
   deployContract,
@@ -102,4 +110,5 @@ module.exports = {
   verifyContract,
   readRedpacketDeployment,
   saveRedpacketDeployment,
+  hashToken,
 };
