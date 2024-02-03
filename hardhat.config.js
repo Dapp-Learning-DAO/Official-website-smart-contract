@@ -1,5 +1,6 @@
-require("@nomiclabs/hardhat-waffle");
-require("@nomiclabs/hardhat-ethers");
+// require("@nomiclabs/hardhat-waffle");
+// require("@nomiclabs/hardhat-ethers");
+require("@nomicfoundation/hardhat-toolbox");
 require('@nomicfoundation/hardhat-verify');
 
 require("dotenv").config();
