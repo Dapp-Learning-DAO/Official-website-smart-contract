@@ -3,50 +3,58 @@
 //
 // When running the script with `hardhat run <script>` you'll find the Hardhat
 // Runtime Environment's members available in the global scope.
-const { ethers } = require('hardhat');
-require('dotenv').config();
-const { MerkleTree } = require('merkletreejs');
-const keccak256 = require('keccak256');
-const { readRedpacketDeployment } = require('../../utils');
-const claimerList = require('./claimerList.json');
-
-function hashToken(account) {
-  return Buffer.from(ethers.utils.solidityKeccak256(['address'], [account]).slice(2), 'hex');
-}
+require("dotenv").config();
+const { ethers } = require("hardhat");
+const { encodePacked, keccak256 } = require("viem");
+const { MerkleTree } = require("merkletreejs");
+const { readRedpacketDeployment, hashToken } = require("../../utils");
+const claimerList = require("./claimerList.json");
 
 async function main() {
   const [deployer, user1, user2] = await ethers.getSigners();
   const deployment = readRedpacketDeployment();
 
   const HappyRedPacketAddress = deployment.redPacketAddress;
-  const redpacketID = deployment.redPacketID;
-  const simpleToken = await ethers.getContractAt('SimpleToken', deployment.simpleTokenAddress, deployer);
-  const redPacket = await ethers.getContractAt('HappyRedPacket', HappyRedPacketAddress, deployer);
+  let redpacketID = deployment.redPacketID;
+  let simpleToken = await ethers.getContractAt(
+    "SimpleToken",
+    deployment.simpleTokenAddress,
+    deployer,
+  );
+  let redPacket = await ethers.getContractAt(
+    "HappyRedPacket",
+    HappyRedPacketAddress,
+    deployer,
+  );
 
-  merkleTree = new MerkleTree(
+  let merkleTree = new MerkleTree(
     claimerList.map((user) => hashToken(user)),
     keccak256,
-    { sortPairs: true }
+    { sortPairs: true },
   );
 
   async function cliamRedPacket(user) {
     let proof = merkleTree.getHexProof(hashToken(user.address));
-    console.log('merkleTree proof: ', proof);
+    console.log("merkleTree proof: ", proof);
 
     const balanceBefore = await simpleToken.balanceOf(user.address);
 
-    let createRedPacketRecipt = await redPacket.connect(user).claim(redpacketID, proof);
+    let createRedPacketRecipt = await redPacket
+      .connect(user)
+      .claimOrdinaryRedpacket(redpacketID, proof);
     await createRedPacketRecipt.wait();
 
     const balanceAfter = await simpleToken.balanceOf(user.address);
-    console.log(`user ${user.address} has claimd ${balanceAfter.sub(balanceBefore)}`);
+    console.log(
+      `user ${user.address} has claimd ${balanceAfter - balanceBefore}`,
+    );
   }
 
-  console.log("\n=========Begin to claim Red Packet=========\n")
-  
+  console.log("\n=========Begin to claim Red Packet=========\n");
+
   await cliamRedPacket(deployer);
 
-  console.log('\n=========Claim Red Packet successfully=========\n');
+  console.log("\n=========Claim Red Packet successfully=========\n");
 }
 
 // We recommend this pattern to be able to use async/await everywhere

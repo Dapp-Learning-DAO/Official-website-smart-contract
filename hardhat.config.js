@@ -1,6 +1,7 @@
-require("@nomiclabs/hardhat-waffle");
-require("@nomiclabs/hardhat-ethers");
-require('@nomicfoundation/hardhat-verify');
+// require("@nomiclabs/hardhat-waffle");
+// require("@nomiclabs/hardhat-ethers");
+require("@nomicfoundation/hardhat-toolbox");
+require("@nomicfoundation/hardhat-verify");
 
 require("dotenv").config();
 
@@ -67,14 +68,14 @@ module.exports = {
         chainId: 534352,
         urls: {
           apiURL: "https://api.scrollscan.com/api",
-          browserURL: "https://scrollscan.com/"
-        }
-      }
-    ]
+          browserURL: "https://scrollscan.com/",
+        },
+      },
+    ],
   },
   sourcify: {
     // Disabled by default
     // Doesn't need an API key
-    enabled: true
-  }
+    enabled: true,
+  },
 };

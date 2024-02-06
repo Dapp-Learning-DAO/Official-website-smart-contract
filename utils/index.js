@@ -1,13 +1,24 @@
 // read and save redpacket contract deployment json file
 const path = require("path");
 const fs = require("fs");
-const { network } = require('hardhat');
+const hre = require("hardhat");
+const { encodePacked, keccak256, toHex } = require("viem");
 
-const currentNamework = network.name
+const currentNamework = hre.network.name;
 const DEPLOYMENGT_DIR = path.join(
   __dirname,
-  "/scripts/redpacket/" + currentNamework + "-deployment.json"
+  "../scripts/redpacket/" + currentNamework + "-deployment.json",
 );
+
+const AddressZero = "0x0000000000000000000000000000000000000000";
+
+async function deployContract(name, params, deployer = undefined) {
+  const contract = await hre.ethers.deployContract(name, params, deployer);
+  await contract.waitForDeployment();
+  // @todo 临时处理
+  contract.address = contract.target;
+  return contract;
+}
 
 /*
  * deployment:
@@ -34,7 +45,7 @@ function saveRedpacketDeployment(payload) {
       ...oldData,
       ...payload,
     }),
-    { flag: "w+" }
+    { flag: "w+" },
   );
   return true;
 }
@@ -42,9 +53,9 @@ function saveRedpacketDeployment(payload) {
 async function verifyContract(
   contractNameOrAddress,
   network = hre.network.name,
-  constructorArguments = null
+  constructorArguments = null,
 ) {
-  if (network == "hardhat") {
+  if (network == "hardhat" || network == "localhost") {
     console.log("hardhat network skip verifyContract");
     return;
   }
@@ -84,10 +95,20 @@ function isAddress(str) {
   return /^0x[a-fA-F0-9]{40}$/.test(str);
 }
 
+function hashToken(account) {
+  return Buffer.from(
+    keccak256(encodePacked(["address"], [account])).slice(2),
+    "hex",
+  );
+}
+
 module.exports = {
+  AddressZero,
+  deployContract,
   DEPLOYMENGT_DIR,
   isAddress,
   verifyContract,
   readRedpacketDeployment,
   saveRedpacketDeployment,
+  hashToken,
 };

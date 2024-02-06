@@ -3,16 +3,20 @@
 //
 // When running the script with `hardhat run <script>` you'll find the Hardhat
 // Runtime Environment's members available in the global scope.
-const { ethers } = require('hardhat');
-require('dotenv').config();
-const { MerkleTree } = require('merkletreejs');
-const keccak256 = require('keccak256');
-const { readRedpacketDeployment, saveRedpacketDeployment } = require('../../utils');
-const claimerList = require('./claimerList.json');
-
+require("dotenv").config();
+const { ethers } = require("hardhat");
+const { parseEther, keccak256, encodePacked } = require("viem");
+const { MerkleTree } = require("merkletreejs");
+const {
+  readRedpacketDeployment,
+  saveRedpacketDeployment,
+} = require("../../utils");
+const claimerList = require("./claimerList.json");
 
 function hashToken(account) {
-  return Buffer.from(ethers.utils.solidityKeccak256(['address'], [account]).slice(2), 'hex');
+  return Buffer.from(
+    keccak256(encodePacked(["address"], [account]).slice(2), "hex"),
+  );
 }
 
 // sleep function
@@ -31,7 +35,7 @@ async function sleep() {
 
 // zero bytes
 const ZERO_BYTES32 =
-    "0x0000000000000000000000000000000000000000000000000000000000000000";
+  "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 async function main() {
   const [deployer] = await ethers.getSigners();
@@ -40,21 +44,29 @@ async function main() {
   const HappyRedPacketAddress = deployment.redPacketAddress;
   const SimpleTokenAddress = deployment.simpleTokenAddress;
 
-  const redPacket = await ethers.getContractAt('HappyRedPacket', HappyRedPacketAddress, deployer);
-  const simpleToken = await ethers.getContractAt('SimpleToken', SimpleTokenAddress, deployer);
+  const redPacket = await ethers.getContractAt(
+    "HappyRedPacket",
+    HappyRedPacketAddress,
+    deployer,
+  );
+  const simpleToken = await ethers.getContractAt(
+    "SimpleToken",
+    SimpleTokenAddress,
+    deployer,
+  );
 
-  let tx = await simpleToken.approve(redPacket.address, ethers.utils.parseEther('100'));
+  let tx = await simpleToken.approve(redPacket.target, parseEther("100"));
   await tx.wait();
 
-  console.log('Approve Successfully');
+  console.log("Approve Successfully");
 
-  merkleTree = new MerkleTree(
+  const merkleTree = new MerkleTree(
     claimerList.map((user) => hashToken(user)),
     keccak256,
-    { sortPairs: true }
+    { sortPairs: true },
   );
-  merkleTreeRoot = merkleTree.getHexRoot();
-  console.log('merkleTree Root:', merkleTreeRoot);
+  const merkleTreeRoot = merkleTree.getHexRoot();
+  console.log("merkleTree Root:", merkleTreeRoot);
 
   // create_red_packet
   let creationParams = {
@@ -63,27 +75,50 @@ async function main() {
     _number: 2,
     _ifrandom: true,
     _duration: 259200, // 259200
-    _message: 'Hi',
-    _name: 'cache',
+    _message: "Hi",
+    _name: "cache",
     _token_type: 1,
     _token_addr: SimpleTokenAddress,
     // total_tokens: ethers.utils.parseEther('100'),
-    _total_tokens:  100
+    _total_tokens: 100,
   };
 
-  redPacket.once('CreationSuccess', (total, id, name, message, creator, creation_time, token_address, number, ifrandom, duration,ZERO_BYTES32) => {
-    endSleep = true;
-    saveRedpacketDeployment({ redPacketID: id, redPacketTotal: total.toString() });
-    console.log(`CreationSuccess Event, total: ${total.toString()}\tRedpacketId: ${id}  `);
-  });
+  redPacket.once(
+    "CreationSuccess",
+    (
+      total,
+      id,
+      name,
+      message,
+      creator,
+      creation_time,
+      token_address,
+      number,
+      ifrandom,
+      duration,
+      ZERO_BYTES32,
+    ) => {
+      endSleep = true;
+      saveRedpacketDeployment({
+        redPacketID: id,
+        redPacketTotal: total.toString(),
+      });
+      console.log(
+        `CreationSuccess Event, total: ${total.toString()}\tRedpacketId: ${id}  `,
+      );
+    },
+  );
 
-  let createRedPacketRecipt = await redPacket.create_red_packet(...Object.values(creationParams),{
-    // sometimes it will be fail if not specify the gasLimit
-    gasLimit: 1483507
-  });
+  let createRedPacketRecipt = await redPacket.create_red_packet(
+    ...Object.values(creationParams),
+    {
+      // sometimes it will be fail if not specify the gasLimit
+      gasLimit: 1483507,
+    },
+  );
   await createRedPacketRecipt.wait();
 
-  console.log('Create Red Packet successfully');
+  console.log("Create Red Packet successfully");
 
   await sleep();
 }
