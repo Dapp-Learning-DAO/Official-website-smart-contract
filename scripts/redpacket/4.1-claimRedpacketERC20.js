@@ -5,7 +5,7 @@
 // Runtime Environment's members available in the global scope.
 require("dotenv").config();
 const { ethers } = require("hardhat");
-const { encodePacked, keccak256 } = require("viem");
+const keccak256 = require("keccak256");
 const { MerkleTree } = require("merkletreejs");
 const { readRedpacketDeployment, hashToken } = require("../../utils");
 const claimerList = require("./claimerList.json");
@@ -35,13 +35,14 @@ async function main() {
 
   async function cliamRedPacket(user) {
     let proof = merkleTree.getHexProof(hashToken(user.address));
-    console.log("merkleTree proof: ", proof);
-
     const balanceBefore = await simpleToken.balanceOf(user.address);
 
     let createRedPacketRecipt = await redPacket
       .connect(user)
-      .claimOrdinaryRedpacket(redpacketID, proof);
+      .claimOrdinaryRedpacket(redpacketID, proof, {
+        // sometimes it will be fail if not specify the gasLimit
+        gasLimit: 1483507,
+      });
     await createRedPacketRecipt.wait();
 
     const balanceAfter = await simpleToken.balanceOf(user.address);

@@ -5,7 +5,8 @@
 // Runtime Environment's members available in the global scope.
 require("dotenv").config();
 const { ethers } = require("hardhat");
-const { parseEther, keccak256, encodePacked } = require("viem");
+const { parseEther } = require("viem");
+const keccak256 = require("keccak256");
 const { MerkleTree } = require("merkletreejs");
 const {
   readRedpacketDeployment,
@@ -15,7 +16,8 @@ const claimerList = require("./claimerList.json");
 
 function hashToken(account) {
   return Buffer.from(
-    keccak256(encodePacked(["address"], [account]).slice(2), "hex"),
+    ethers.solidityPackedKeccak256(["address"], [account]).slice(2),
+    "hex",
   );
 }
 
@@ -40,7 +42,6 @@ const ZERO_BYTES32 =
 async function main() {
   const [deployer] = await ethers.getSigners();
   const deployment = readRedpacketDeployment();
-
   const HappyRedPacketAddress = deployment.redPacketAddress;
   const SimpleTokenAddress = deployment.simpleTokenAddress;
 
@@ -68,6 +69,8 @@ async function main() {
   const merkleTreeRoot = merkleTree.getHexRoot();
   console.log("merkleTree Root:", merkleTreeRoot);
 
+  let message = new Date().getTime().toString();
+
   // create_red_packet
   let creationParams = {
     _merkleroot: merkleTreeRoot,
@@ -75,7 +78,7 @@ async function main() {
     _number: 2,
     _ifrandom: true,
     _duration: 259200, // 259200
-    _message: "Hi",
+    _message: message,
     _name: "cache",
     _token_type: 1,
     _token_addr: SimpleTokenAddress,
