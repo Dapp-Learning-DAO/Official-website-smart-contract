@@ -2,7 +2,7 @@
 const path = require("path");
 const fs = require("fs");
 const hre = require("hardhat");
-const { encodePacked, keccak256, toHex } = require("viem");
+const { encodePacked, toHex } = require("viem");
 
 const currentNamework = hre.network.name;
 const DEPLOYMENGT_DIR = path.join(
@@ -97,7 +97,7 @@ function isAddress(str) {
 
 function hashToken(account) {
   return Buffer.from(
-    keccak256(encodePacked(["address"], [account])).slice(2),
+    hre.ethers.solidityPackedKeccak256(["address"], [account]).slice(2),
     "hex",
   );
 }
