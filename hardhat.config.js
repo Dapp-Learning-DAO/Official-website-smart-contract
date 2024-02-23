@@ -1,6 +1,7 @@
-require("@nomiclabs/hardhat-waffle");
-require("@nomiclabs/hardhat-ethers");
-require('@nomicfoundation/hardhat-verify');
+// require("@nomiclabs/hardhat-waffle");
+// require("@nomiclabs/hardhat-ethers");
+require("@nomicfoundation/hardhat-toolbox");
+require("@nomicfoundation/hardhat-verify");
 
 require("dotenv").config();
 
@@ -30,6 +31,10 @@ module.exports = {
         (you can put in a mnemonic here to set the deployer locally)
       */
     },
+    mumbaiTest: {
+      url: "https://polygon-testnet.public.blastapi.io",
+      accounts: mnemonic(),
+    },
     mainnet: {
       url: "https://mainnet.infura.io/v3/" + process.env.INFURA_ID, //<---- YOUR INFURA ID! (or it won't work)
       accounts: mnemonic(),
@@ -48,27 +53,26 @@ module.exports = {
     },
     arbitrum: {
       url: 'https://arb1.arbitrum.io/rpc',
-      accounts: 
-        mnemonic(),
+      accounts: mnemonic(),
     },
     scroll: {
-      url: "https://rpc.scroll.io",
-      accounts: 
-        mnemonic()
+      url: "https://rpc.scroll.io/",
+      accounts: mnemonic(),
     },
   },
   etherscan: {
-    //apiKey: process.env.SCROLL_KEY,
-    //apiKey: process.env.ARBI_KEY,
-    apiKey: process.env.EHTERSCAN_KEY,
-
+    apiKey: {
+      mainnet: process.env.EHTERSCAN_KEY,
+      sepolia: process.env.EHTERSCAN_KEY,
+      scroll: process.env.SCROLLSCAN_KEY,
+    },
     customChains: [
       {
-        network: 'scroll',
+        network: "scroll",
         chainId: 534352,
         urls: {
-          apiURL: 'https://api.scrollscan.com/api',
-          browserURL: 'https://scrollscan.com/',
+          apiURL: "https://api.scrollscan.com/api",
+          browserURL: "https://scrollscan.com/",
         },
       },
     ],
@@ -76,6 +80,6 @@ module.exports = {
   sourcify: {
     // Disabled by default
     // Doesn't need an API key
-    enabled: true
-  }
+    enabled: true,
+  },
 };

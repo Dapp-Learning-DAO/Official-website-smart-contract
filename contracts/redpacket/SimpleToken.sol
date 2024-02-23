@@ -25,4 +25,8 @@ contract SimpleToken is ERC20 {
         INITIAL_SUPPLY = initial_supply * (10 ** uint256(decimals_));
         _mint(msg.sender, initial_supply * (10 ** uint256(decimals_)));
     }
+
+    function mint(uint256 amount) external {
+        _mint(msg.sender, amount);
+    }
 }

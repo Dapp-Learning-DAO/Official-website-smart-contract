@@ -13,3 +13,8 @@ node_modules
 # solidity-coverage files
 /coverage
 /coverage.json
+**/*deployment.json
+**/claimerList.json
+**/deployment.json
+.history
+pnpm-lock.yaml
