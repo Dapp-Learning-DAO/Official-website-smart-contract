@@ -113,4 +113,19 @@ contract MerkleDistributorFactory is Ownable {
             TransferHelper.safeTransfer(_token, _recipient, _amount);
         }
     }
+
+    function batchTransferETH(address[] memory _receipts,uint256[] memory _amounts)payable external{
+        uint256 size = _receipts.length;
+        require(size==_amounts.length,"Size not match");
+        for(uint256 i=0;i<size;i++)
+            TransferHelper.safeTransferETH(_receipts[i], _amounts[i]);
+
+    }
+
+    function batchTransfer(address _token,address[] memory _receipts,uint256[] memory _amounts) external{
+        uint256 size = _receipts.length;
+        require(size==_amounts.length,"Size not match");
+        for(uint256 i=0;i<size;i++)
+            TransferHelper.safeTransferFrom(_token, msg.sender,_receipts[i], _amounts[i]);
+    }
 }
