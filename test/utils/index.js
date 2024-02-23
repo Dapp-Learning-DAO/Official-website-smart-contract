@@ -73,7 +73,6 @@ const calculateZKProof = async (input) => {
 };
 
 module.exports = {
-  hashToken,
   convertZKSnarkCallData,
   calculatePublicSignals,
   calculateZKProof,

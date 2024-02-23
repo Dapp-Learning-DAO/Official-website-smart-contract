@@ -137,6 +137,7 @@ contract HappyRedPacket is Initializable {
         bytes32 _id,
         bytes32[] memory proof
     ) public returns (uint claimed) {
+        //check exist or not
         RedPacket storage rp = redpacket_by_id[_id];
         require(rp.lock == bytes32(0), 'Not ordinary redpacket');
 
