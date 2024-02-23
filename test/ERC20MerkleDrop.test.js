@@ -207,5 +207,20 @@ describe("ERC20MerkleDrop", function () {
       await ethers.provider.send("evm_increaseTime", [60 * 60]); // increate time
       await distributorEth.connect(owner).refund(AddressZero, owner.address);
     });
+
+    it("transfer eth batch", async () => {
+      let receipts = [alice.address, bob.address];
+      let amounts = [100, 200];
+      await distributorFactory.batchTransferETH(receipts, amounts, {
+        value: 300,
+      });
+    });
+
+    it("transfer token batch", async () => {
+      let receipts = [alice.address, bob.address];
+      let amounts = [100, 200];
+      await erc20.approve(distributorFactory.address, 300);
+      await distributorFactory.batchTransfer(erc20.address, receipts, amounts);
+    });
   });
 });
