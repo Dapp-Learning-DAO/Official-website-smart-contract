@@ -51,6 +51,10 @@ module.exports = {
       url: "https://optimism-mainnet.infura.io/v3/" + process.env.INFURA_ID,
       accounts: mnemonic(),
     },
+    arbitrum: {
+      url: 'https://arb1.arbitrum.io/rpc',
+      accounts: mnemonic(),
+    },
     scroll: {
       url: "https://rpc.scroll.io/",
       accounts: mnemonic(),
