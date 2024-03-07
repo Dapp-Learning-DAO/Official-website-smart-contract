@@ -47,12 +47,12 @@ module.exports = {
       url: "https://polygon-mainnet.infura.io/v3/" + process.env.INFURA_ID,
       accounts: mnemonic(),
     },
-    optim: {
+    optimism: {
       url: "https://optimism-mainnet.infura.io/v3/" + process.env.INFURA_ID,
       accounts: mnemonic(),
     },
     arbitrum: {
-      url: 'https://arb1.arbitrum.io/rpc',
+      url: "https://arb1.arbitrum.io/rpc",
       accounts: mnemonic(),
     },
     scroll: {
@@ -65,6 +65,8 @@ module.exports = {
       mainnet: process.env.EHTERSCAN_KEY,
       sepolia: process.env.EHTERSCAN_KEY,
       scroll: process.env.SCROLLSCAN_KEY,
+      optimisticEthereum: process.env.OP_KEY,
+      arbitrumOne: process.env.ARBI_KEY,
     },
     customChains: [
       {
