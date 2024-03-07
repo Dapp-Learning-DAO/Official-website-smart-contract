@@ -28,5 +28,8 @@
         "*.{js,jsx,ts,tsx}": [
             "prettier --write"
         ]
+    },
+    "dependencies": {
+        "zksync-cli": "^1.5.1"
     }
 }
