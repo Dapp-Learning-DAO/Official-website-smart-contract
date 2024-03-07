@@ -11,23 +11,26 @@ const {
   verifyContract,
 } = require("./merkleDistributorUtils");
 const { deployContract } = require("../../utils");
+rigin / main;
 
 async function main() {
   const [deployer] = await ethers.getSigners();
 
   console.log("Deploying contracts with the account:", deployer.address);
 
-  console.log(
-    "Account balance:",
-    (await ethers.provider.getBalance(deployer.address)).toString(),
-  );
+  // console.log('Account balance:', (await deployer.getBalance()).toString());
 
-  let distributorFactory = await deployContract("MerkleDistributorFactory");
-  console.log("distributorFactory address:", distributorFactory.address);
+  const DistributorFactory = await ethers.getContractFactory(
+    "MerkleDistributorFactory",
+  );
+  const distributorFactory = await DistributorFactory.deploy();
+  // await distributorFactory.deployed();
+
+  console.log("distributorFactory address:", distributorFactory.target);
 
   // save contract address to file
   saveMerkleDistributorDeployment({
-    merkleDistributorFactoryAddress: distributorFactory.address,
+    merkleDistributorFactoryAddress: distributorFactory.target,
     merkleDistributorFactoryOwner: deployer.address,
   });
 
