@@ -120,8 +120,16 @@ contract MerkleDistributorFactory is Ownable {
     ) external payable {
         uint256 size = _receipts.length;
         require(size == _amounts.length, 'Size not match');
-        for (uint256 i = 0; i < size; i++)
+
+        uint256 totalAmount = 0;
+        for (uint256 i = 0; i < size; i++) {
+            totalAmount += _amounts[i];
+        }
+
+        require(totalAmount <= msg.value, 'Value not enough');
+        for (uint256 i = 0; i < size; i++) {
             TransferHelper.safeTransferETH(_receipts[i], _amounts[i]);
+        }
     }
 
     function batchTransfer(
