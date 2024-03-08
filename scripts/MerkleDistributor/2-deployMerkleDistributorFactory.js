@@ -11,7 +11,6 @@ const {
   verifyContract,
 } = require("./merkleDistributorUtils");
 const { deployContract } = require("../../utils");
-rigin / main;
 
 async function main() {
   const [deployer] = await ethers.getSigners();
