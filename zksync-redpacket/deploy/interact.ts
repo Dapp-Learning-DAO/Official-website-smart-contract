@@ -1,8 +1,16 @@
 import * as hre from "hardhat";
 import { deployContract, getWallet } from "./utils";
-import { ethers } from "ethers";
+import {
+  EventLog,
+  Log,
+  MaxUint256,
+  ethers,
+  formatUnits,
+  parseUnits,
+} from "ethers";
 import MerkleTree from "merkletreejs";
 import { encodePacked, keccak256, parseEther } from "viem";
+import contractDeployments from "./zkSync_deployment.json";
 
 function hashToken(account: `0x${string}`) {
   return Buffer.from(
@@ -11,25 +19,8 @@ function hashToken(account: `0x${string}`) {
   );
 }
 
-// sleep function
-let endSleep = false;
-async function sleep() {
-  for (let i = 0; i < 500; i++) {
-    if (endSleep) break;
-    await new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(true);
-      }, 500);
-    });
-  }
-  if (!endSleep) console.log(`\nhad slept too long, but no result...`);
-}
-
 // Address of the contract to interact with
 // const CONTRACT_ADDRESS = "0x0Aa38Cffc6A72e6349c8bfF22497AeC4A02fc75c"; // zksync mainnet
-const CONTRACT_ADDRESS = "0xA3130cd61aD39787B61B7F3ce55CDaA68882beE5"; // zksync sepolia
-if (!CONTRACT_ADDRESS)
-  throw "⛔️ Provide address of the contract to interact with!";
 
 // sepolia SimpleToken address 0xD9a42d80741D4CE4513c16a70032C3B95cbB0CCE
 
@@ -37,8 +28,11 @@ if (!CONTRACT_ADDRESS)
 const ZERO_BYTES32 =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
 
+const tokenAmount = parseUnits("10", 18);
+
 // An example of a script to interact with the contract
 export default async function () {
+  const CONTRACT_ADDRESS = contractDeployments.Redpacket;
   console.log(`Running script to interact with contract ${CONTRACT_ADDRESS}`);
 
   // Load compiled contract info
@@ -52,22 +46,28 @@ export default async function () {
     contractArtifact.abi,
     wallet, // Interact with the contract on behalf of this wallet
   );
+  const redPacketAddress = await redPacket.getAddress();
 
   const testToken = new ethers.Contract(
-    "0xD9a42d80741D4CE4513c16a70032C3B95cbB0CCE",
+    contractDeployments.SimpleToken,
     (await hre.artifacts.readArtifact("SimpleToken")).abi,
     wallet,
   );
+  const testTokenAddress = await testToken.getAddress();
 
-  // let approveTx = await testToken.approve(
-  //   redPacket.address,
-  //   ethers.constants.MaxUint256,
-  // );
-  // approveTx.wait();
-  // console.log(`approve tx ${approveTx}`)
+  const allowanceRes = await testToken.allowance(
+    wallet.address,
+    redPacketAddress,
+  );
+  console.log(`allowance: ${formatUnits(allowanceRes, 18)}`);
+
+  if (allowanceRes < tokenAmount) {
+    let approveRes = await testToken.approve(redPacketAddress, MaxUint256);
+    console.log(`approve tx res`, approveRes);
+  }
 
   // Run contract read function
-  console.log(await redPacket.nonce());
+  console.log("Redpacket Nonce:", await redPacket.nonce());
 
   const claimerList = [
     wallet.address,
@@ -89,21 +89,29 @@ export default async function () {
   let creationParams = {
     _merkleroot: merkleTreeRoot,
     _lock: ZERO_BYTES32,
-    _number: 2,
+    _number: claimerList.length,
     _ifrandom: true,
-    _duration: 259200, // 259200
+    _duration: 259200,
     _message: message,
     _name: "cache",
     _token_type: 1,
-    _token_addr: testToken.address,
-    // total_tokens: ethers.utils.parseEther('100'),
-    _total_tokens: 100,
+    _token_addr: testTokenAddress,
+    _total_tokens: parseEther("1"),
   };
 
   let redpacketID = "";
-  redPacket.once(
-    "CreationSuccess",
-    (
+
+  let createRedPacketTx = await redPacket.create_red_packet(
+    ...Object.values(creationParams),
+  );
+  const createRedPacketRes = await createRedPacketTx.wait();
+  const creationEvent = createRedPacketRes.logs.find(
+    (_log: EventLog) =>
+      typeof _log.fragment !== "undefined" &&
+      _log.fragment.name === "CreationSuccess",
+  );
+  if (creationEvent) {
+    const [
       total,
       id,
       name,
@@ -115,42 +123,29 @@ export default async function () {
       ifrandom,
       duration,
       ZERO_BYTES32,
-    ) => {
-      endSleep = true;
-      redpacketID = id;
+    ] = creationEvent.args;
+    redpacketID = id;
 
-      console.log(
-        `CreationSuccess Event, total: ${total.toString()}\tRedpacketId: ${id}  `,
-      );
-    },
-  );
-
-  let createRedPacketRecipt = await redPacket.create_red_packet(
-    ...Object.values(creationParams),
-    {
-      // sometimes it will be fail if not specify the gasLimit
-      gasLimit: 1483507,
-      // value: parseEther("0.3"),
-    },
-  );
-  await createRedPacketRecipt.wait();
+    console.log(
+      `CreationSuccess Event, total: ${total.toString()}\tRedpacketId: ${id}  `,
+    );
+  } else {
+    throw "Can't parse CreationSuccess Event";
+  }
 
   console.log("Create Red Packet successfully");
-
-  await sleep();
 
   // claim
   async function cliamRedPacket(user) {
     let proof = merkleTree.getHexProof(hashToken(user.address));
     const balanceBefore = await testToken.balanceOf(user.address);
 
-    let createRedPacketRecipt = await redPacket
-      .connect(user)
-      .claimOrdinaryRedpacket(redpacketID, proof, {
-        // sometimes it will be fail if not specify the gasLimit
-        gasLimit: 1483507,
-      });
-    await createRedPacketRecipt.wait();
+    let createRedPacketTx = await redPacket.claimOrdinaryRedpacket(
+      redpacketID,
+      proof,
+    );
+    const createRedPacketRecipt = await createRedPacketTx.wait();
+    console.log("createRedPacketRecipt", createRedPacketRecipt);
 
     const balanceAfter = await testToken.balanceOf(user.address);
     console.log(

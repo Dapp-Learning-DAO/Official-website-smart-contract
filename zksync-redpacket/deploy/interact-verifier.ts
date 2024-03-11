@@ -6,6 +6,7 @@ import { encodePacked, keccak256, parseEther, toHex } from "viem";
 import { buildPoseidon } from "circomlibjs";
 import { groth16 } from "snarkjs";
 import Vkey from "./lib/zksnark/verification_key.json";
+import contractDeployments from "./zkSync_deployment.json";
 
 function hashToken(account: `0x${string}`) {
   return Buffer.from(
@@ -70,9 +71,6 @@ const calcProof = async (input: string) => {
 
 // Address of the contract to interact with
 // const CONTRACT_ADDRESS = ""; // zksync mainnet
-const CONTRACT_ADDRESS = "0x607Ca6dA301ecaf972EF64ae8764Ae998ADF3eb7"; // zksync sepolia
-if (!CONTRACT_ADDRESS)
-  throw "⛔️ Provide address of the contract to interact with!";
 
 // sepolia SimpleToken address 0xD9a42d80741D4CE4513c16a70032C3B95cbB0CCE
 
@@ -82,6 +80,7 @@ const ZERO_BYTES32 =
 
 // An example of a script to interact with the contract
 export default async function () {
+  const CONTRACT_ADDRESS = contractDeployments.Verifier;
   console.log(`Running script to interact with contract ${CONTRACT_ADDRESS}`);
 
   // Load compiled contract info
