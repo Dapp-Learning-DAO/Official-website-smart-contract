@@ -26,11 +26,10 @@ npx hardhat deploy-zksync --script deploy-distributor.ts --network zkSyncMainnet
 
 ```
 
-HappyRedPacket: 0x0Aa38Cffc6A72e6349c8bfF22497AeC4A02fc75c
+## Deployments
 
-Groth16Verifier:
-0x590d335091F55b0aC08E49868ec30f2e164eab32
+zkSync Mainnet:
 
-MerkleDistributorFactory
-
-0x7a532BD262291EeA040A3D61d7BeB3220ff06687
+-   HappyRedPacket: 0x0Aa38Cffc6A72e6349c8bfF22497AeC4A02fc75c
+-   Groth16Verifier: 0x590d335091F55b0aC08E49868ec30f2e164eab32
+-   MerkleDistributorFactory: 0x7a532BD262291EeA040A3D61d7BeB3220ff06687
