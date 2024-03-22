@@ -1,4 +1,5 @@
 import * as hre from "hardhat";
+import path from "path";
 import { deployContract, getWallet } from "./utils";
 import {
   EventLog,
@@ -9,8 +10,11 @@ import {
   parseUnits,
 } from "ethers";
 import MerkleTree from "merkletreejs";
-import { encodePacked, keccak256, parseEther } from "viem";
+import { encodePacked, keccak256, parseEther, toHex } from "viem";
+import * as snarkjs from "snarkjs";
+import { buildPoseidon } from "circomlibjs";
 import contractDeployments from "./zkSync_deployment.json";
+import Vkey from "./lib/zksnark/verification_key.json";
 
 function hashToken(account: `0x${string}`) {
   return Buffer.from(
@@ -29,6 +33,7 @@ const ZERO_BYTES32 =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
 
 const tokenAmount = parseUnits("10", 18);
+const password = "abcd1234";
 
 // An example of a script to interact with the contract
 export default async function () {
@@ -84,67 +89,94 @@ export default async function () {
 
   let message = new Date().getTime().toString();
 
-  // create_red_packet
-  // create_red_packet
-  let creationParams = {
-    _merkleroot: merkleTreeRoot,
-    _lock: ZERO_BYTES32,
-    _number: claimerList.length,
-    _ifrandom: true,
-    _duration: 259200,
-    _message: message,
-    _name: "cache",
-    _token_type: 1,
-    _token_addr: testTokenAddress,
-    _total_tokens: parseEther("1"),
-  };
+  let lock = ZERO_BYTES32;
+  if (password) {
+    lock = await calculatePublicSignals(password);
+  }
 
   let redpacketID = "";
 
-  let createRedPacketTx = await redPacket.create_red_packet(
-    ...Object.values(creationParams),
-  );
-  const createRedPacketRes = await createRedPacketTx.wait();
-  const creationEvent = createRedPacketRes.logs.find(
-    (_log: EventLog) =>
-      typeof _log.fragment !== "undefined" &&
-      _log.fragment.name === "CreationSuccess",
-  );
-  if (creationEvent) {
-    const [
-      total,
-      id,
-      name,
-      message,
-      creator,
-      creation_time,
-      token_address,
-      number,
-      ifrandom,
-      duration,
-      ZERO_BYTES32,
-    ] = creationEvent.args;
-    redpacketID = id;
+  async function createRedpacket() {
+    // create_red_packet
+    let creationParams = {
+      _merkleroot: merkleTreeRoot,
+      _lock: lock,
+      _number: claimerList.length,
+      _ifrandom: true,
+      _duration: 259200,
+      _message: message,
+      _name: "cache",
+      _token_type: 1,
+      _token_addr: testTokenAddress,
+      _total_tokens: parseEther("1"),
+    };
 
-    console.log(
-      `CreationSuccess Event, total: ${total.toString()}\tRedpacketId: ${id}  `,
+    let createRedPacketTx = await redPacket.create_red_packet(
+      ...Object.values(creationParams),
     );
-  } else {
-    throw "Can't parse CreationSuccess Event";
-  }
+    const createRedPacketRes = await createRedPacketTx.wait();
+    const creationEvent = createRedPacketRes.logs.find(
+      (_log: EventLog) =>
+        typeof _log.fragment !== "undefined" &&
+        _log.fragment.name === "CreationSuccess",
+    );
+    if (creationEvent) {
+      const [
+        total,
+        id,
+        name,
+        message,
+        creator,
+        creation_time,
+        token_address,
+        number,
+        ifrandom,
+        duration,
+        ZERO_BYTES32,
+      ] = creationEvent.args;
+      redpacketID = id;
 
-  console.log("Create Red Packet successfully");
+      console.log(
+        `CreationSuccess Event, total: ${total.toString()}\tRedpacketId: ${id}  `,
+      );
+    } else {
+      throw "Can't parse CreationSuccess Event";
+    }
+
+    console.log("Create Red Packet successfully");
+  }
 
   // claim
   async function cliamRedPacket(user) {
-    let proof = merkleTree.getHexProof(hashToken(user.address));
+    let merkleProof = merkleTree.getHexProof(hashToken(user.address));
     const balanceBefore = await testToken.balanceOf(user.address);
 
-    let createRedPacketTx = await redPacket.claimOrdinaryRedpacket(
-      redpacketID,
-      proof,
-    );
-    const createRedPacketRecipt = await createRedPacketTx.wait();
+    let claimTx: any;
+    if (password) {
+      const res = await calculateProof(password);
+      if (res) {
+        const { proof, publicSignals } = res;
+        claimTx = await redPacket
+          .claimPasswordRedpacket(
+            redpacketID,
+            merkleProof,
+            proof.a,
+            proof.b,
+            proof.c,
+            {
+              gasLimit: 1000000, // 手动设置较高的Gas limit
+            },
+          )
+          .catch((err) => console.error(err));
+      }
+    } else {
+      claimTx = await redPacket.claimOrdinaryRedpacket(
+        redpacketID,
+        merkleProof,
+      );
+    }
+
+    const createRedPacketRecipt = await claimTx.wait();
     console.log("createRedPacketRecipt", createRedPacketRecipt);
 
     const balanceAfter = await testToken.balanceOf(user.address);
@@ -153,5 +185,67 @@ export default async function () {
     );
   }
 
+  await createRedpacket();
   await cliamRedPacket(wallet);
+}
+
+const calculateProof = async (input: string) => {
+  const proveRes = await snarkjs.groth16.fullProve(
+    { in: keccak256(toHex(input)) },
+    path.join(__dirname, "./lib/zksnark/datahash.wasm"),
+    path.join(__dirname, "./lib/zksnark/circuit_final.zkey"),
+  );
+  // console.log("calculateProof proveRes", proveRes);
+  // console.log(Vkey);
+
+  const res = await snarkjs.groth16.verify(
+    Vkey,
+    proveRes.publicSignals,
+    proveRes.proof,
+  );
+
+  if (res) {
+    // console.log("calculateProof verify passed!");
+
+    // @remind 必须使用 exportSolidityCallData 方法转换，否则calldata顺序不对
+    const proof = convertCallData(
+      await snarkjs.groth16.exportSolidityCallData(
+        proveRes.proof,
+        proveRes.publicSignals,
+      ),
+    );
+
+    return {
+      proof: proof,
+      publicSignals: proveRes.publicSignals,
+    };
+  } else {
+    console.error("calculateProof verify faild.");
+    return null;
+  }
+};
+
+const calculatePublicSignals = async (input: string) => {
+  const poseidon = await buildPoseidon();
+  const hash = poseidon.F.toString(poseidon([keccak256(toHex(input))]));
+  return toHex(BigInt(hash), { size: 32 });
+};
+
+function convertCallData(calldata: string) {
+  const argv: string[] = calldata.replace(/["[\]\s]/g, "").split(",");
+
+  const a = [argv[0], argv[1]];
+  const b = [
+    [argv[2], argv[3]],
+    [argv[4], argv[5]],
+  ];
+  const c = [argv[6], argv[7]];
+
+  let input: string[] = [];
+  // const input = [argv[8], argv[9]];
+  for (let i = 8; i < argv.length; i++) {
+    input.push(argv[i]);
+  }
+
+  return { a, b, c, input };
 }
