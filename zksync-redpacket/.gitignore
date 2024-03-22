@@ -112,5 +112,5 @@ dist
 # TernJS port file
 .tern-port
 
-
+# zksync deployment
 deployments-zk/
