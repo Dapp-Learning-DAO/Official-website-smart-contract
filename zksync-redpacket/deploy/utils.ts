@@ -2,8 +2,9 @@ import { Provider, Wallet } from "zksync-ethers";
 import * as hre from "hardhat";
 import { Deployer } from "@matterlabs/hardhat-zksync-deploy";
 import dotenv from "dotenv";
-import { formatEther } from "ethers/lib/utils";
-import { BigNumberish } from "ethers";
+import { formatEther } from "ethers";
+import * as fs from "fs";
+import * as path from "path";
 
 import "@matterlabs/hardhat-zksync-node/dist/type-extensions";
 import "@matterlabs/hardhat-zksync-verify/dist/src/type-extensions";
@@ -40,13 +41,10 @@ export const getWallet = (privateKey?: string) => {
   return wallet;
 };
 
-export const verifyEnoughBalance = async (
-  wallet: Wallet,
-  amount: BigNumberish,
-) => {
+export const verifyEnoughBalance = async (wallet: Wallet, amount: bigint) => {
   // Check if the wallet has enough balance
   const balance = await wallet.getBalance();
-  if (balance.lt(amount))
+  if (balance < amount)
     throw `⛔️ Wallet balance is too low! Required ${formatEther(amount)} ETH, but current ${wallet.address} balance is ${formatEther(balance)} ETH`;
 };
 
@@ -123,25 +121,50 @@ export const deployContract = async (
 
   const constructorArgs = contract.interface.encodeDeploy(constructorArguments);
   const fullContractSource = `${artifact.sourceName}:${artifact.contractName}`;
+  const contractAddress = await contract.getAddress();
 
   // Display contract deployment info
   log(`\n"${artifact.contractName}" was successfully deployed:`);
-  log(` - Contract address: ${contract.address}`);
+  log(` - Contract address: ${contractAddress}`);
   log(` - Contract source: ${fullContractSource}`);
   log(` - Encoded constructor arguments: ${constructorArgs}\n`);
 
   if (!options?.noVerify && hre.network.config.verifyURL) {
     log(`Requesting contract verification...`);
-    // await verifyContract({
-    //   address: contract.address,
-    //   contract: fullContractSource,
-    //   constructorArguments: constructorArgs,
-    //   bytecode: artifact.bytecode,
-    // });
+    await verifyContract({
+      address: contractAddress,
+      contract: fullContractSource,
+      constructorArguments: constructorArgs,
+      bytecode: artifact.bytecode,
+    });
   }
 
   return contract;
 };
+
+const DEPLOYMENGT_DIR = path.join(__dirname, "./zkSync_deployment.json");
+export function readDeployment() {
+  if (!fs.existsSync(DEPLOYMENGT_DIR)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(DEPLOYMENGT_DIR, { encoding: "utf-8" }));
+  } catch {
+    return null;
+  }
+}
+
+export function saveDeployment(payload: { [contract: string]: string }) {
+  let oldData = readDeployment();
+  if (!oldData) oldData = {};
+  fs.writeFileSync(
+    DEPLOYMENGT_DIR,
+    JSON.stringify({
+      ...oldData,
+      ...payload,
+    }),
+    { flag: "w+" },
+  );
+  return true;
+}
 
 /**
  * Rich wallets can be used for testing purposes.

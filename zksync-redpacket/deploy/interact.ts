@@ -1,8 +1,20 @@
 import * as hre from "hardhat";
+import path from "path";
 import { deployContract, getWallet } from "./utils";
-import { ethers } from "ethers";
+import {
+  EventLog,
+  Log,
+  MaxUint256,
+  ethers,
+  formatUnits,
+  parseUnits,
+} from "ethers";
 import MerkleTree from "merkletreejs";
-import { encodePacked, keccak256, parseEther } from "viem";
+import { encodePacked, keccak256, parseEther, toHex } from "viem";
+import * as snarkjs from "snarkjs";
+import { buildPoseidon } from "circomlibjs";
+import contractDeployments from "./zkSync_deployment.json";
+import Vkey from "./lib/zksnark/verification_key.json";
 
 function hashToken(account: `0x${string}`) {
   return Buffer.from(
@@ -11,25 +23,8 @@ function hashToken(account: `0x${string}`) {
   );
 }
 
-// sleep function
-let endSleep = false;
-async function sleep() {
-  for (let i = 0; i < 500; i++) {
-    if (endSleep) break;
-    await new Promise((resolve) => {
-      setTimeout(() => {
-        resolve(true);
-      }, 500);
-    });
-  }
-  if (!endSleep) console.log(`\nhad slept too long, but no result...`);
-}
-
 // Address of the contract to interact with
 // const CONTRACT_ADDRESS = "0x0Aa38Cffc6A72e6349c8bfF22497AeC4A02fc75c"; // zksync mainnet
-const CONTRACT_ADDRESS = "0xA3130cd61aD39787B61B7F3ce55CDaA68882beE5"; // zksync sepolia
-if (!CONTRACT_ADDRESS)
-  throw "⛔️ Provide address of the contract to interact with!";
 
 // sepolia SimpleToken address 0xD9a42d80741D4CE4513c16a70032C3B95cbB0CCE
 
@@ -37,8 +32,12 @@ if (!CONTRACT_ADDRESS)
 const ZERO_BYTES32 =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
 
+const tokenAmount = parseUnits("10", 18);
+const password = "abcd1234";
+
 // An example of a script to interact with the contract
 export default async function () {
+  const CONTRACT_ADDRESS = contractDeployments.Redpacket;
   console.log(`Running script to interact with contract ${CONTRACT_ADDRESS}`);
 
   // Load compiled contract info
@@ -52,22 +51,28 @@ export default async function () {
     contractArtifact.abi,
     wallet, // Interact with the contract on behalf of this wallet
   );
+  const redPacketAddress = await redPacket.getAddress();
 
   const testToken = new ethers.Contract(
-    "0xD9a42d80741D4CE4513c16a70032C3B95cbB0CCE",
+    contractDeployments.SimpleToken,
     (await hre.artifacts.readArtifact("SimpleToken")).abi,
     wallet,
   );
+  const testTokenAddress = await testToken.getAddress();
 
-  // let approveTx = await testToken.approve(
-  //   redPacket.address,
-  //   ethers.constants.MaxUint256,
-  // );
-  // approveTx.wait();
-  // console.log(`approve tx ${approveTx}`)
+  const allowanceRes = await testToken.allowance(
+    wallet.address,
+    redPacketAddress,
+  );
+  console.log(`allowance: ${formatUnits(allowanceRes, 18)}`);
+
+  if (allowanceRes < tokenAmount) {
+    let approveRes = await testToken.approve(redPacketAddress, MaxUint256);
+    console.log(`approve tx res`, approveRes);
+  }
 
   // Run contract read function
-  console.log(await redPacket.nonce());
+  console.log("Redpacket Nonce:", await redPacket.nonce());
 
   const claimerList = [
     wallet.address,
@@ -84,73 +89,95 @@ export default async function () {
 
   let message = new Date().getTime().toString();
 
-  // create_red_packet
-  // create_red_packet
-  let creationParams = {
-    _merkleroot: merkleTreeRoot,
-    _lock: ZERO_BYTES32,
-    _number: 2,
-    _ifrandom: true,
-    _duration: 259200, // 259200
-    _message: message,
-    _name: "cache",
-    _token_type: 1,
-    _token_addr: testToken.address,
-    // total_tokens: ethers.utils.parseEther('100'),
-    _total_tokens: 100,
-  };
+  let lock = ZERO_BYTES32;
+  if (password) {
+    lock = await calculatePublicSignals(password);
+  }
 
   let redpacketID = "";
-  redPacket.once(
-    "CreationSuccess",
-    (
-      total,
-      id,
-      name,
-      message,
-      creator,
-      creation_time,
-      token_address,
-      number,
-      ifrandom,
-      duration,
-      ZERO_BYTES32,
-    ) => {
-      endSleep = true;
+
+  async function createRedpacket() {
+    // create_red_packet
+    let creationParams = {
+      _merkleroot: merkleTreeRoot,
+      _lock: lock,
+      _number: claimerList.length,
+      _ifrandom: true,
+      _duration: 259200,
+      _message: message,
+      _name: "cache",
+      _token_type: 1,
+      _token_addr: testTokenAddress,
+      _total_tokens: parseEther("1"),
+    };
+
+    let createRedPacketTx = await redPacket.create_red_packet(
+      ...Object.values(creationParams),
+    );
+    const createRedPacketRes = await createRedPacketTx.wait();
+    const creationEvent = createRedPacketRes.logs.find(
+      (_log: EventLog) =>
+        typeof _log.fragment !== "undefined" &&
+        _log.fragment.name === "CreationSuccess",
+    );
+    if (creationEvent) {
+      const [
+        total,
+        id,
+        name,
+        message,
+        creator,
+        creation_time,
+        token_address,
+        number,
+        ifrandom,
+        duration,
+        ZERO_BYTES32,
+      ] = creationEvent.args;
       redpacketID = id;
 
       console.log(
         `CreationSuccess Event, total: ${total.toString()}\tRedpacketId: ${id}  `,
       );
-    },
-  );
+    } else {
+      throw "Can't parse CreationSuccess Event";
+    }
 
-  let createRedPacketRecipt = await redPacket.create_red_packet(
-    ...Object.values(creationParams),
-    {
-      // sometimes it will be fail if not specify the gasLimit
-      gasLimit: 1483507,
-      // value: parseEther("0.3"),
-    },
-  );
-  await createRedPacketRecipt.wait();
-
-  console.log("Create Red Packet successfully");
-
-  await sleep();
+    console.log("Create Red Packet successfully");
+  }
 
   // claim
   async function cliamRedPacket(user) {
-    let proof = merkleTree.getHexProof(hashToken(user.address));
+    let merkleProof = merkleTree.getHexProof(hashToken(user.address));
     const balanceBefore = await testToken.balanceOf(user.address);
 
-    let createRedPacketRecipt = await redPacket
-      .connect(user)
-      .claimOrdinaryRedpacket(redpacketID, proof, {
-        // sometimes it will be fail if not specify the gasLimit
-        gasLimit: 1483507,
-      });
-    await createRedPacketRecipt.wait();
+    let claimTx: any;
+    if (password) {
+      const res = await calculateProof(password);
+      if (res) {
+        const { proof, publicSignals } = res;
+        claimTx = await redPacket
+          .claimPasswordRedpacket(
+            redpacketID,
+            merkleProof,
+            proof.a,
+            proof.b,
+            proof.c,
+            {
+              gasLimit: 1000000, // 手动设置较高的Gas limit
+            },
+          )
+          .catch((err) => console.error(err));
+      }
+    } else {
+      claimTx = await redPacket.claimOrdinaryRedpacket(
+        redpacketID,
+        merkleProof,
+      );
+    }
+
+    const createRedPacketRecipt = await claimTx.wait();
+    console.log("createRedPacketRecipt", createRedPacketRecipt);
 
     const balanceAfter = await testToken.balanceOf(user.address);
     console.log(
@@ -158,5 +185,67 @@ export default async function () {
     );
   }
 
+  await createRedpacket();
   await cliamRedPacket(wallet);
+}
+
+const calculateProof = async (input: string) => {
+  const proveRes = await snarkjs.groth16.fullProve(
+    { in: keccak256(toHex(input)) },
+    path.join(__dirname, "./lib/zksnark/datahash.wasm"),
+    path.join(__dirname, "./lib/zksnark/circuit_final.zkey"),
+  );
+  // console.log("calculateProof proveRes", proveRes);
+  // console.log(Vkey);
+
+  const res = await snarkjs.groth16.verify(
+    Vkey,
+    proveRes.publicSignals,
+    proveRes.proof,
+  );
+
+  if (res) {
+    // console.log("calculateProof verify passed!");
+
+    // @remind 必须使用 exportSolidityCallData 方法转换，否则calldata顺序不对
+    const proof = convertCallData(
+      await snarkjs.groth16.exportSolidityCallData(
+        proveRes.proof,
+        proveRes.publicSignals,
+      ),
+    );
+
+    return {
+      proof: proof,
+      publicSignals: proveRes.publicSignals,
+    };
+  } else {
+    console.error("calculateProof verify faild.");
+    return null;
+  }
+};
+
+const calculatePublicSignals = async (input: string) => {
+  const poseidon = await buildPoseidon();
+  const hash = poseidon.F.toString(poseidon([keccak256(toHex(input))]));
+  return toHex(BigInt(hash), { size: 32 });
+};
+
+function convertCallData(calldata: string) {
+  const argv: string[] = calldata.replace(/["[\]\s]/g, "").split(",");
+
+  const a = [argv[0], argv[1]];
+  const b = [
+    [argv[2], argv[3]],
+    [argv[4], argv[5]],
+  ];
+  const c = [argv[6], argv[7]];
+
+  let input: string[] = [];
+  // const input = [argv[8], argv[9]];
+  for (let i = 8; i < argv.length; i++) {
+    input.push(argv[i]);
+  }
+
+  return { a, b, c, input };
 }
