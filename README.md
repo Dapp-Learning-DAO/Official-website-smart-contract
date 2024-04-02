@@ -33,6 +33,12 @@ npx hardhat verify --network scroll 0xC90D844679C0eFEB37522c43711D4856d192BD62
 
 ```
 
+## redpacket
+
+polygonzkevm:
+RedPacket address: 0x142160aeC49EF40a338B41c9aEd49f3dCE54C7C1
+Groth16Verifier address: 0x442b21f765b2a1830e8e0F7D10F69F728B00Cc9F
+
 ## distributor
 
 op:
