@@ -2,7 +2,7 @@
 
 ## support network
 
-optimism , arbi , zksync ,scroll
+optimism , arbi , zksync ,scroll, polygonzkevm
 
 ## build
 
@@ -15,11 +15,13 @@ npx hardhat run scripts/redpacket/2-deployHappyRedPacket.js --network scroll
 
 npx hardhat run scripts/redpacket/2-deployHappyRedPacket.js --network arbitrum
 
+npx hardhat run scripts/redpacket/2-deployHappyRedPacket.js --network polygonZKEVM
+
 
 // distributor
-npx hardhat run scripts/redpacket/2-deployHappyRedPacket.js --network arbitrum
+npx hardhat run scripts/redpacket/2-deployMerkleDistributorFactory.js --network arbitrum
 
-
+npx hardhat run scripts/MerkleDistributor/2-deployMerkleDistributorFactory.js --network polygonZKEVM
 
 npm run format
 or
@@ -40,3 +42,5 @@ arbi:
 0xF5D3668d94dcF4C2cB7bE81AD43857762695BF78
 
 scroll: 0x35eca762d594e734e58Fa2838EAA61A359606289
+
+polygonzkevm: 0x075FE5D2CD5D22D744Da94d81658143abf49D589

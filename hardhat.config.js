@@ -31,10 +31,7 @@ module.exports = {
         (you can put in a mnemonic here to set the deployer locally)
       */
     },
-    mumbaiTest: {
-      url: "https://polygon-testnet.public.blastapi.io",
-      accounts: mnemonic(),
-    },
+
     mainnet: {
       url: "https://mainnet.infura.io/v3/" + process.env.INFURA_ID, //<---- YOUR INFURA ID! (or it won't work)
       accounts: mnemonic(),
@@ -59,6 +56,16 @@ module.exports = {
       url: "https://rpc.scroll.io/",
       accounts: mnemonic(),
     },
+    base: {
+      // this is a custom network
+      url: "https://mainnet.base.org/",
+      accounts: mnemonic(),
+    },
+    polygonZKEVM: {
+      // this is a custom network
+      url: "https://zkevm-rpc.com",
+      accounts: mnemonic(),
+    },
   },
   etherscan: {
     apiKey: {
@@ -67,6 +74,7 @@ module.exports = {
       scroll: process.env.SCROLLSCAN_KEY,
       optimisticEthereum: process.env.OP_KEY,
       arbitrumOne: process.env.ARBI_KEY,
+      polygonZKEVM: process.env.POLYGONZKEVM_KEY,
     },
     customChains: [
       {
@@ -75,6 +83,14 @@ module.exports = {
         urls: {
           apiURL: "https://api.scrollscan.com/api",
           browserURL: "https://scrollscan.com/",
+        },
+      },
+      {
+        network: "polygonZKEVM",
+        chainId: 1101,
+        urls: {
+          apiURL: "https://zkevm-rpc.com",
+          browserURL: "https://zkevm.polygonscan.com/",
         },
       },
     ],
