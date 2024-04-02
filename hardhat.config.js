@@ -66,6 +66,10 @@ module.exports = {
       url: "https://zkevm-rpc.com",
       accounts: mnemonic(),
     },
+    linea: {
+      url: "https://linea-mainnet.infura.io/v3/" + process.env.INFURA_ID,
+      accounts: mnemonic(),
+    },
   },
   etherscan: {
     apiKey: {
@@ -75,6 +79,7 @@ module.exports = {
       optimisticEthereum: process.env.OP_KEY,
       arbitrumOne: process.env.ARBI_KEY,
       polygonZKEVM: process.env.POLYGONZKEVM_KEY,
+      linea: process.env.LINEASCAN_API_KEY,
     },
     customChains: [
       {
@@ -91,6 +96,14 @@ module.exports = {
         urls: {
           apiURL: "https://zkevm-rpc.com",
           browserURL: "https://zkevm.polygonscan.com/",
+        },
+      },
+      {
+        network: "linea",
+        chainId: 59144,
+        urls: {
+          apiURL: "https://api.lineascan.build/api",
+          browserURL: "https://lineascan.build/",
         },
       },
     ],

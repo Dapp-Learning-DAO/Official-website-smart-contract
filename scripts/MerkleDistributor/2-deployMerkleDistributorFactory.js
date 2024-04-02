@@ -19,19 +19,19 @@ async function main() {
 
   // console.log('Account balance:', (await deployer.getBalance()).toString());
 
-  // const DistributorFactory = await ethers.getContractFactory(
-  //   "MerkleDistributorFactory",
-  // );
-  // const distributorFactory = await DistributorFactory.deploy();
-  // // await distributorFactory.deployed();
+  const DistributorFactory = await ethers.getContractFactory(
+    "MerkleDistributorFactory",
+  );
+  const distributorFactory = await DistributorFactory.deploy();
+  // await distributorFactory.deployed();
 
-  // console.log("distributorFactory address:", distributorFactory.target);
+  console.log("distributorFactory address:", distributorFactory.target);
 
-  // // save contract address to file
-  // saveMerkleDistributorDeployment({
-  //   merkleDistributorFactoryAddress: distributorFactory.target,
-  //   merkleDistributorFactoryOwner: deployer.address,
-  // });
+  // save contract address to file
+  saveMerkleDistributorDeployment({
+    merkleDistributorFactoryAddress: distributorFactory.target,
+    merkleDistributorFactoryOwner: deployer.address,
+  });
 
   console.log("Init HappyRedPacket successfully");
 

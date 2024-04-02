@@ -18,6 +18,11 @@ npx hardhat run scripts/redpacket/2-deployHappyRedPacket.js --network arbitrum
 npx hardhat run scripts/redpacket/2-deployHappyRedPacket.js --network polygonZKEVM
 
 
+npx hardhat run scripts/redpacket/2-deployHappyRedPacket.js --network linea
+
+
+
+
 // distributor
 npx hardhat run scripts/redpacket/2-deployMerkleDistributorFactory.js --network arbitrum
 
@@ -39,6 +44,10 @@ polygonzkevm:
 RedPacket address: 0x142160aeC49EF40a338B41c9aEd49f3dCE54C7C1
 Groth16Verifier address: 0x442b21f765b2a1830e8e0F7D10F69F728B00Cc9F
 
+linea:
+RedPacket address: 0x142160aeC49EF40a338B41c9aEd49f3dCE54C7C1
+Groth16Verifier address: 0x442b21f765b2a1830e8e0F7D10F69F728B00Cc9F
+
 ## distributor
 
 op:
@@ -50,3 +59,5 @@ arbi:
 scroll: 0x35eca762d594e734e58Fa2838EAA61A359606289
 
 polygonzkevm: 0x075FE5D2CD5D22D744Da94d81658143abf49D589
+
+linea: 0x075FE5D2CD5D22D744Da94d81658143abf49D589
