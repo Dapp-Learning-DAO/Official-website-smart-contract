@@ -5,7 +5,7 @@ interface IClaimableNFT {
     event ValidSignerChanged(address _newValidSigner);
     event Locked(uint256 _tokenId);
     event SetBaseURI(string _tokenId);
-    event Claimed(address _sender, address _receiver, uint256 _tokenId);
+    event Claimed(address _sender, address _receiver, uint256 _tokenId, string url);
 
     error AlreadyClaimed();
 
