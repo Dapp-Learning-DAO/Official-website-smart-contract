@@ -50,7 +50,7 @@ describe("ClaimAbleNFT", function () {
       const signedAt = Date.now();
       const seed = Math.floor(Math.random() * 1000) + 1;
       const chainId = 1;
-      const message = "HELLO";
+      const message = "HELLO";//TODO 前期调试期间需要将合约的字符串也改成这个“HELLO”
       const messageHash = keccak256(Buffer.from(message));
       // const messageHash = ethers.utils.keccak256(ethers.utils.toUtf8Bytes(message));
 
