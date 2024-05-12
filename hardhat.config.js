@@ -94,7 +94,7 @@ module.exports = {
         network: "polygonZKEVM",
         chainId: 1101,
         urls: {
-          apiURL: "https://zkevm-rpc.com",
+          apiURL: "https://api-zkevm.polygonscan.com/api",
           browserURL: "https://zkevm.polygonscan.com/",
         },
       },
