@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-import './IClaimableNFT.sol';
+import './IDLWarcraft3NFT.sol';
 import '../lib/Counters.sol';
 import '@openzeppelin/contracts/token/ERC721/ERC721.sol';
 import '@openzeppelin/contracts/utils/cryptography/ECDSA.sol';
+import '@openzeppelin/contracts/utils/cryptography/MessageHashUtils.sol';
 import '@openzeppelin/contracts/access/Ownable.sol';
 
-contract ClaimableNFT is IClaimableNFT, ERC721, Ownable {
+contract DLWarcraft3NFT is IDLWarcraft3NFT, ERC721, Ownable {
     using ECDSA for bytes32;
     using Counters for Counters.Counter;
     Counters.Counter private tokenIdCounter;
@@ -41,14 +42,12 @@ contract ClaimableNFT is IClaimableNFT, ERC721, Ownable {
         address _receiver,
         uint256 _signedAt,
         uint256 _seed,
-        uint256 _chainId,
         bytes calldata signature
     ) external {
         if (_signedAt < block.timestamp - SIGNATURE_VALIDITY) revert ExpiredSignature();
         if (hasUserClaimed(_receiver)) revert AlreadyClaimed();
 
-        if (!isValidSignature(_receiver, _seed, _signedAt, _chainId, signature))
-            revert IncorrectSignature();
+        if (!isValidSignature(_receiver, _seed, _signedAt, signature)) revert IncorrectSignature();
 
         tokenIdCounter.increment();
         uint256 tokenId = tokenIdCounter.current();
@@ -146,11 +145,12 @@ contract ClaimableNFT is IClaimableNFT, ERC721, Ownable {
         address _receiver,
         uint256 _seed,
         uint256 _signedAt,
-        uint256 _chainId,
         bytes calldata _signature
     ) internal view returns (bool) {
         if (_signature.length != 65) revert IncorrectSignature();
-        bytes32 message = keccak256(abi.encode(_receiver, _seed, _signedAt, _chainId));
-        return message.recover(_signature) == validSigner;
+        bytes32 message = keccak256(
+            abi.encode(_receiver, _seed, _signedAt, block.chainid, address(this))
+        );
+        return MessageHashUtils.toEthSignedMessageHash(message).recover(_signature) == validSigner;
     }
 }

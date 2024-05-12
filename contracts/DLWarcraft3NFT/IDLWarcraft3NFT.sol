@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
-interface IClaimableNFT {
+interface IDLWarcraft3NFT {
     event ValidSignerChanged(address _newValidSigner);
     event Locked(uint256 _tokenId);
     event SetBaseURI(string _tokenId);
