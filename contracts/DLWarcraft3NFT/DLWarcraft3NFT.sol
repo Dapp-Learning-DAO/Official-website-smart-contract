@@ -55,7 +55,7 @@ contract DLWarcraft3NFT is IDLWarcraft3NFT, ERC721, Ownable {
 
         uint random = rand(_seed) % RANKLENGTH;
         uint256 rank = getFreeRank(random);
-        string memory url = uint2str(rank); //  http://ip/watermargin/1
+        string memory url = uint2str(rank);
 
         _safeMint(_receiver, tokenId);
         _setTokenURI(tokenId, url);
