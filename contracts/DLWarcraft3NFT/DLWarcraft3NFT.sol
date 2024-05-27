@@ -13,7 +13,7 @@ contract DLWarcraft3NFT is IDLWarcraft3NFT, ERC721, Ownable {
     using Counters for Counters.Counter;
     Counters.Counter private tokenIdCounter;
 
-    uint256 public constant RANKLENGTH = 108;
+    uint256 public constant RANKLENGTH = 917;
     uint256 public constant SIGNATURE_VALIDITY = 1 hours;
     address public validSigner;
     string public baseURI;
