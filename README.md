@@ -23,6 +23,9 @@ npx hardhat run scripts/redpacket/2-deployHappyRedPacket.js --network linea
 
 
 
+
+
+
 // distributor
 npx hardhat run scripts/redpacket/2-deployMerkleDistributorFactory.js --network arbitrum
 
@@ -61,3 +64,9 @@ scroll: 0x35eca762d594e734e58Fa2838EAA61A359606289
 polygonzkevm: 0x075FE5D2CD5D22D744Da94d81658143abf49D589
 
 linea: 0x075FE5D2CD5D22D744Da94d81658143abf49D589
+
+## war3
+
+npx hardhat run scripts/DLWarcraft3NFT/1-deploy.js --network scroll
+
+scroll nft : 0x705CE2045bb28B2b3324B2e7251DA328ff2e8b37

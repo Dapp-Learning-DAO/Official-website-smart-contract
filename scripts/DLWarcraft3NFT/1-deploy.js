@@ -16,7 +16,7 @@ async function main() {
   const nftName = "DLWarcraft3NFT";
   const nftSymbol = "DLW3";
   const signerManager = deployer.address;
-  const baseURL = "https://devapi.dapplearning.org/dlwarcraft?rank=";
+  const baseURL = "https://api.dapplearning.org/dlwarcraft?rank=";
   const nft = await deployContract("DLWarcraft3NFT", [
     nftName,
     nftSymbol,
