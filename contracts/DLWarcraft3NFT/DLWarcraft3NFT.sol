@@ -61,7 +61,8 @@ contract DLWarcraft3NFT is IDLWarcraft3NFT, ERC721, Ownable {
         _setTokenURI(tokenId, url);
 
         validRank[rank] = true;
-        claimedBitMap[msg.sender] = true;
+        claimedBitMap[_receiver] = true;
+        claimedTotal++;
 
         emit Locked(tokenId);
         emit Claimed(msg.sender, _receiver, tokenId, url);
@@ -87,15 +88,22 @@ contract DLWarcraft3NFT is IDLWarcraft3NFT, ERC721, Ownable {
 
     function getFreeRank(uint256 randomNumber) internal view returns (uint256) {
         uint256 loopIndex = randomNumber;
-        while (validRank[loopIndex]) {
-            loopIndex = loopIndex + 1;
-
-            if (loopIndex >= RANKLENGTH) {
-                loopIndex = loopIndex % RANKLENGTH;
+        for (uint256 i = 0; i < RANKLENGTH; i++) {
+            uint256 rank = (loopIndex + i) % RANKLENGTH;
+            if (!validRank[rank]) {
+                return rank;
             }
         }
+        revert('No free rank available');
+    }
 
-        return loopIndex;
+    /**
+     * @dev See {IERC721Metadata-tokenURI}.
+     */
+    function tokenURI(uint256 tokenId) public view override returns (string memory) {
+        _requireOwned(tokenId);
+
+        return bytes(baseURI).length > 0 ? string.concat(baseURI, tokenURIs[tokenId]) : '';
     }
 
     function _setTokenURI(uint256 tokenId, string memory _tokenURI) internal virtual {
@@ -103,7 +111,7 @@ contract DLWarcraft3NFT is IDLWarcraft3NFT, ERC721, Ownable {
         tokenURIs[tokenId] = _tokenURI;
     }
 
-    function rand(uint userSeed) public view returns (uint) {
+    function rand(uint userSeed) internal view returns (uint) {
         return
             uint(
                 keccak256(
