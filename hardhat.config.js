@@ -14,8 +14,8 @@ const settings = {
 function mnemonic() {
   return [
     process.env.PRIVATE_KEY,
-    process.env.PRIVATE_KEY1,
-    process.env.PRIVATE_KEY2,
+    // process.env.PRIVATE_KEY1,
+    // process.env.PRIVATE_KEY2,
   ];
 }
 
