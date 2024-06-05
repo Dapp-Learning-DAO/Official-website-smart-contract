@@ -69,4 +69,4 @@ linea: 0x075FE5D2CD5D22D744Da94d81658143abf49D589
 
 npx hardhat run scripts/DLWarcraft3NFT/1-deploy.js --network scroll
 
-scroll nft : 0x705CE2045bb28B2b3324B2e7251DA328ff2e8b37
+scroll nft : 0x368e375758693E027F00d7AD955dC199a95512F9
