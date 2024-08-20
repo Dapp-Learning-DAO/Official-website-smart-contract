@@ -11,10 +11,11 @@ import {
 } from "ethers";
 import MerkleTree from "merkletreejs";
 import { encodePacked, keccak256, parseEther, toHex } from "viem";
-import * as snarkjs from "snarkjs";
+import { groth16 } from "snarkjs";
 import { buildPoseidon } from "circomlibjs";
 import contractDeployments from "./zkSync_deployment.json";
 import Vkey from "./lib/zksnark/verification_key.json";
+import { calcProof } from "./interact-verifier";
 
 function hashToken(account: `0x${string}`) {
   return Buffer.from(
@@ -132,13 +133,14 @@ export default async function () {
         number,
         ifrandom,
         duration,
-        ZERO_BYTES32,
+        hash_lock,
       ] = creationEvent.args;
       redpacketID = id;
 
       console.log(
         `CreationSuccess Event, total: ${total.toString()}\tRedpacketId: ${id}  `,
       );
+      console.log(`lock: ${hash_lock}`);
     } else {
       throw "Can't parse CreationSuccess Event";
     }
@@ -153,20 +155,14 @@ export default async function () {
 
     let claimTx: any;
     if (password) {
-      const res = await calculateProof(password);
-      if (res) {
-        const { proof, publicSignals } = res;
+      const proofRes = await calculateProof(password);
+      if (proofRes) {
+        const {
+          proof: { a, b, c },
+          publicSignals,
+        } = proofRes;
         claimTx = await redPacket
-          .claimPasswordRedpacket(
-            redpacketID,
-            merkleProof,
-            proof.a,
-            proof.b,
-            proof.c,
-            {
-              gasLimit: 1000000, // 手动设置较高的Gas limit
-            },
-          )
+          .claimPasswordRedpacket(redpacketID, merkleProof, a, b, c)
           .catch((err) => console.error(err));
       }
     } else {
@@ -190,26 +186,23 @@ export default async function () {
 }
 
 const calculateProof = async (input: string) => {
-  const proveRes = await snarkjs.groth16.fullProve(
+  const proveRes = await groth16.fullProve(
     { in: keccak256(toHex(input)) },
     path.join(__dirname, "./lib/zksnark/datahash.wasm"),
     path.join(__dirname, "./lib/zksnark/circuit_final.zkey"),
   );
-  // console.log("calculateProof proveRes", proveRes);
-  // console.log(Vkey);
 
-  const res = await snarkjs.groth16.verify(
+  const res = await groth16.verify(
     Vkey,
     proveRes.publicSignals,
     proveRes.proof,
   );
 
   if (res) {
-    // console.log("calculateProof verify passed!");
+    console.log("calculateProof verify passed!");
 
-    // @remind 必须使用 exportSolidityCallData 方法转换，否则calldata顺序不对
     const proof = convertCallData(
-      await snarkjs.groth16.exportSolidityCallData(
+      await groth16.exportSolidityCallData(
         proveRes.proof,
         proveRes.publicSignals,
       ),
@@ -244,7 +237,7 @@ function convertCallData(calldata: string) {
   let input: string[] = [];
   // const input = [argv[8], argv[9]];
   for (let i = 8; i < argv.length; i++) {
-    input.push(argv[i]);
+    input.push(argv[i] as never);
   }
 
   return { a, b, c, input };

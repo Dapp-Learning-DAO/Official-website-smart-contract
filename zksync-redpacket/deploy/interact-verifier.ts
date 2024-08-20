@@ -1,7 +1,7 @@
 import * as hre from "hardhat";
 import path from "path";
 import { deployContract, getWallet } from "./utils";
-import { ethers } from "ethers";
+import { ethers, toBigInt } from "ethers";
 import { encodePacked, keccak256, parseEther, toHex } from "viem";
 import { buildPoseidon } from "circomlibjs";
 import { groth16 } from "snarkjs";
@@ -34,14 +34,12 @@ function convertCallData(calldata: string) {
   return { a, b, c, input };
 }
 
-const calcProof = async (input: string) => {
+export const calcProof = async (input: string) => {
   const proveRes = await groth16.fullProve(
     { in: keccak256(toHex(input)) },
     path.join(__dirname, "./lib/zksnark/datahash.wasm"),
     path.join(__dirname, "./lib/zksnark/circuit_final.zkey"),
   );
-  console.log("calculateProof proveRes", proveRes);
-  console.log(Vkey);
 
   const res = await groth16.verify(
     Vkey,
@@ -95,7 +93,7 @@ export default async function () {
     wallet, // Interact with the contract on behalf of this wallet
   );
 
-  const password = "123456abcd";
+  const password = "abcd1234";
   const proofRes = await calcProof(password);
   if (proofRes) {
     const {
