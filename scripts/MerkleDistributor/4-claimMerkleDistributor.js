@@ -4,32 +4,36 @@
 // When running the script with `hardhat run <script>` you'll find the Hardhat
 // Runtime Environment's members available in the global scope.
 //eg. npx hardhat run scripts/MerkleDistributor/4-claimMerkleDistributor.js --network mumbaiTest
-const { ethers } = require('hardhat');
-require('dotenv').config();
-const { MerkleTree } = require('merkletreejs');
-const keccak256 = require('keccak256');
-const { readMerkleDistributorDeployment } = require('./merkleDistributorUtils');
-const claimerList = require('./claimerList.json');
-const BalanceTree = require('../../test/balance-tree.js');
-
+const { ethers } = require("hardhat");
+require("dotenv").config();
+const { MerkleTree } = require("merkletreejs");
+const keccak256 = require("keccak256");
+const { readMerkleDistributorDeployment } = require("./merkleDistributorUtils");
+const claimerList = require("./claimerList.json");
+const BalanceTree = require("../../test/balance-tree.js");
 
 function catchClaimerByAddress(address) {
   let keys = Object.keys(claimerList);
   let index = keys.indexOf(address);
   let amount = claimerList[address];
-  return  { account: address, amount: amount, index: index }
+  return { account: address, amount: amount, index: index };
 }
-
-
 
 async function main() {
   const [deployer, user1, user2] = await ethers.getSigners();
   const deployment = readMerkleDistributorDeployment();
 
-  const merkleDistributorAddress = deployment.MerkleDistributor;//read from deployment.json
-  const simpleToken = await ethers.getContractAt('SimpleToken', deployment.simpleTokenAddress, deployer);
-  const merkleDistributor = await ethers.getContractAt('MerkleDistributor', merkleDistributorAddress, deployer);
-
+  const merkleDistributorAddress = deployment.MerkleDistributor; //read from deployment.json
+  const simpleToken = await ethers.getContractAt(
+    "SimpleToken",
+    deployment.simpleTokenAddress,
+    deployer,
+  );
+  const merkleDistributor = await ethers.getContractAt(
+    "MerkleDistributor",
+    merkleDistributorAddress,
+    deployer,
+  );
 
   let balances = new Array();
   for (const [key, value] of Object.entries(claimerList)) {
@@ -37,28 +41,35 @@ async function main() {
   }
   let merkleTree = new BalanceTree(balances);
   let merkleTreeRoot = merkleTree.getHexRoot();
-  console.log('merkleTree Root:', merkleTreeRoot);
-
+  console.log("merkleTree Root:", merkleTreeRoot);
 
   async function claimMerkleDistributor(user) {
     let claimerData = catchClaimerByAddress(user.address);
-    const proof = merkleTree.getProof(claimerData.index, user.address, claimerData.amount);
-    console.log('merkleTree proof: ', proof);
+    const proof = merkleTree.getProof(
+      claimerData.index,
+      user.address,
+      claimerData.amount,
+    );
+    console.log("merkleTree proof: ", proof);
 
     const balanceBefore = await simpleToken.balanceOf(user.address);
 
-    let createRedPacketRecipt = await merkleDistributor.connect(user).claim(claimerData.index, claimerData.amount, proof);
+    let createRedPacketRecipt = await merkleDistributor
+      .connect(user)
+      .claim(claimerData.index, claimerData.amount, proof);
     await createRedPacketRecipt.wait();
 
     const balanceAfter = await simpleToken.balanceOf(user.address);
-    console.log(`user ${user.address} has claimd ${balanceAfter.sub(balanceBefore)}`);
+    console.log(
+      `user ${user.address} has claimd ${balanceAfter - balanceBefore}`,
+    );
   }
 
-  console.log("\n=========Begin to claim Red Packet=========\n")
+  console.log("\n=========Begin to claim Red Packet=========\n");
 
   await claimMerkleDistributor(deployer);
 
-  console.log('\n=========Claim Red Packet successfully=========\n');
+  console.log("\n=========Claim Red Packet successfully=========\n");
 }
 
 // We recommend this pattern to be able to use async/await everywhere

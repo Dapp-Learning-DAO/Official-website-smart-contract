@@ -19,7 +19,8 @@ contract MerkleDistributorFactory is Ownable {
         uint256 number,
         uint256 duration,
         address creator,
-        uint256 creation_time
+        uint256 creation_time,
+        address distributor
     );
 
     receive() external payable {}
@@ -101,7 +102,8 @@ contract MerkleDistributorFactory is Ownable {
             number,
             duration,
             msg.sender,
-            block.timestamp
+            block.timestamp,
+            address(distributor)
         );
     }
 

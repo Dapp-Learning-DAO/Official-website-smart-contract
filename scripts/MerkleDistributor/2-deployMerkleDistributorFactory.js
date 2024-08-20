@@ -23,7 +23,7 @@ async function main() {
     "MerkleDistributorFactory",
   );
   const distributorFactory = await DistributorFactory.deploy();
-  // await distributorFactory.deployed();
+  await distributorFactory.waitForDeployment();
 
   console.log("distributorFactory address:", distributorFactory.target);
 
