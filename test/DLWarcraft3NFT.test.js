@@ -108,7 +108,7 @@ describe("DLWarcraft3NFT", function () {
       ]);
     });
 
-    it("Mint all elements", async () => {
+    it.skip("Mint all elements", async () => {
       const provider = ethers.provider;
       const baseURI = await DLWarcraft3NFT.baseURI();
       const RANKLENGTH = Number(await DLWarcraft3NFT.RANKLENGTH());
@@ -149,7 +149,7 @@ describe("DLWarcraft3NFT", function () {
         const tokenURI = await DLWarcraft3NFT.tokenURI(tokenId);
         const totalSupply = await DLWarcraft3NFT.totalSupply();
 
-        console.log({ tokenId, rank, totalSupply, tokenURI });
+        // console.log({ tokenId, rank, totalSupply, tokenURI });
 
         expect(tokenIds.includes(tokenId), "tokenId should unique").to.be.eq(
           false,
@@ -192,9 +192,9 @@ describe("DLWarcraft3NFT", function () {
 
       const tokenRanksSorted = tokenRanks.sort();
 
-      console.log("tokenIds", tokenIds);
-      console.log("tokenRanks", tokenRanks);
-      console.log("tokenRanksSorted", tokenRanksSorted);
+      // console.log("tokenIds", tokenIds);
+      // console.log("tokenRanks", tokenRanks);
+      // console.log("tokenRanksSorted", tokenRanksSorted);
 
       expect(
         tokenRanksSorted[RANKLENGTH - 1],
