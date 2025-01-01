@@ -62,14 +62,20 @@ interface ISharingWishVault {
     error LockPeriodNotExpired();
     error ETHTransferFailed();
     error ExceedsTotalAmount();
+    error InvalidLockDuration();
 
     /**
-     * Creates a new vault with a message and returns the vault ID.
-     * @param message The content of the wish, typically the hash of the content to save gas.
-     * @param token The token address for this vault.
-     * @return vaultId The ID of the created vault.
+     * @dev Creates a new vault with the given message
+     * @param message The content of the wish
+     * @param token The token address
+     * @param lockDuration The duration for which the vault will be locked
+     * @return vaultId The ID of the created vault
      */
-    function createVault(string calldata message, address token) external returns (uint256 vaultId);
+    function createVault(
+        string calldata message,
+        address token,
+        uint256 lockDuration
+    ) external returns (uint256 vaultId);
 
     /**
      * Donates funds to a specific vault.

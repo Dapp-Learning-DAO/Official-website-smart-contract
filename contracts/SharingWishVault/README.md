@@ -37,11 +37,11 @@
 1. **创建 Vault**
 
 ```solidity
-function createVault(string calldata message, address token) external returns (uint256 vaultId)
+function createVault(string calldata message, address token, uint256 lockDuration) external returns (uint256 vaultId)
 ```
 
 -   创建新的 Vault
--   参数：消息内容和指定接受代币地址（`token`）
+-   参数：消息内容、指定接受代币地址（`token`）和锁定期（`lockDuration`）
 -   返回：`Vault ID`
 
 2. **捐赠资金**

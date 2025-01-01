@@ -62,7 +62,7 @@ describe("SharingWishVault", function () {
     it("Should create vault with valid parameters", async function () {
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message", mockTokenAddress);
+        .createVault("Test Message", mockTokenAddress, MIN_LOCK_TIME);
       const receipt = await tx.wait();
       const vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
 
@@ -70,13 +70,24 @@ describe("SharingWishVault", function () {
       expect(vault.creator).to.equal(alice.address);
       expect(vault.token).to.equal(mockTokenAddress);
       expect(vault.message).to.equal("Test Message");
+      expect(vault.lockTime).to.be.greaterThanOrEqual(
+        Math.floor(Date.now() / 1000) + MIN_LOCK_TIME,
+      );
+    });
+
+    it("Should revert when creating vault with lockDuration less than MIN_LOCK_TIME", async function () {
+      await expect(
+        sharingWishVault
+          .connect(alice)
+          .createVault("Test Message", mockTokenAddress, MIN_LOCK_TIME - 1),
+      ).to.be.revertedWithCustomError(sharingWishVault, "InvalidLockDuration");
     });
 
     it("Should revert when creating vault with non-allowed token", async function () {
       await expect(
         sharingWishVault
           .connect(alice)
-          .createVault("Test Message", ZERO_ADDRESS),
+          .createVault("Test Message", ZERO_ADDRESS, MIN_LOCK_TIME),
       ).to.be.revertedWithCustomError(sharingWishVault, "InvalidTokenAddress");
     });
 
@@ -85,7 +96,7 @@ describe("SharingWishVault", function () {
       await expect(
         sharingWishVault
           .connect(alice)
-          .createVault("Test Message", mockTokenAddress),
+          .createVault("Test Message", mockTokenAddress, MIN_LOCK_TIME),
       ).to.be.revertedWithCustomError(sharingWishVault, "EmergencyModeActive");
     });
   });
@@ -96,7 +107,7 @@ describe("SharingWishVault", function () {
     beforeEach(async function () {
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message", mockTokenAddress);
+        .createVault("Test Message", mockTokenAddress, MIN_LOCK_TIME);
       const receipt = await tx.wait();
       vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
     });
@@ -112,7 +123,7 @@ describe("SharingWishVault", function () {
       // Create a new vault for this test
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message 2", mockTokenAddress);
+        .createVault("Test Message 2", mockTokenAddress, MIN_LOCK_TIME);
       const newVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
 
       const amount1 = ethers.parseEther("100");
@@ -128,7 +139,7 @@ describe("SharingWishVault", function () {
     it("Should accept ETH donations", async function () {
       const ethVaultTx = await sharingWishVault
         .connect(alice)
-        .createVault("ETH Vault", ETH_ADDRESS);
+        .createVault("ETH Vault", ETH_ADDRESS, MIN_LOCK_TIME);
       const ethVaultReceipt = await ethVaultTx.wait();
       const ethVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
 
@@ -156,7 +167,7 @@ describe("SharingWishVault", function () {
     beforeEach(async function () {
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message", mockTokenAddress);
+        .createVault("Test Message", mockTokenAddress, MIN_LOCK_TIME);
       const receipt = await tx.wait();
       vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
 
@@ -176,7 +187,7 @@ describe("SharingWishVault", function () {
       // Create a new vault for this test
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message 2", mockTokenAddress);
+        .createVault("Test Message 2", mockTokenAddress, MIN_LOCK_TIME);
       const newVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
 
       const amount1 = ethers.parseEther("100");
@@ -193,7 +204,7 @@ describe("SharingWishVault", function () {
       // Create a new vault for this test
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message 3", mockTokenAddress);
+        .createVault("Test Message 3", mockTokenAddress, MIN_LOCK_TIME);
       const newVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
 
       const amount1 = ethers.parseEther("30");
@@ -253,7 +264,7 @@ describe("SharingWishVault", function () {
       // Create a new vault for this test
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message 5", mockTokenAddress);
+        .createVault("Test Message 5", mockTokenAddress, MIN_LOCK_TIME);
       const newVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
 
       const amount = ethers.parseEther("100");
@@ -302,7 +313,7 @@ describe("SharingWishVault", function () {
     beforeEach(async function () {
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message", mockTokenAddress);
+        .createVault("Test Message", mockTokenAddress, MIN_LOCK_TIME);
       const receipt = await tx.wait();
       vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
       await sharingWishVault.connect(bob).donate(vaultId, donationAmount);
@@ -335,7 +346,7 @@ describe("SharingWishVault", function () {
       await expect(
         sharingWishVault
           .connect(alice)
-          .createVault("Test Message", mockTokenAddress),
+          .createVault("Test Message", mockTokenAddress, MIN_LOCK_TIME),
       ).to.be.revertedWithCustomError(sharingWishVault, "EmergencyModeActive");
     });
   });

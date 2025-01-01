@@ -54,21 +54,24 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
      * @dev Creates a new vault with the given message
      * @param message The content of the wish
      * @param token The token address
+     * @param lockDuration The duration for which the vault will be locked
      * @return vaultId The ID of the created vault
      */
     function createVault(
         string calldata message,
-        address token
+        address token,
+        uint256 lockDuration
     ) external notInEmergencyMode returns (uint256 vaultId) {
         if (token == address(0)) revert InvalidTokenAddress();
         if (!isAllowedToken(token)) revert TokenNotAllowed();
+        if (lockDuration < MIN_LOCK_TIME) revert InvalidLockDuration();
 
         vaultId = totalVaultCount++;
         WishVault storage vault = vaults[vaultId];
         vault.message = message;
         vault.creator = msg.sender;
         vault.token = token;
-        vault.lockTime = block.timestamp + MIN_LOCK_TIME;
+        vault.lockTime = block.timestamp + lockDuration;
 
         // Store the mapping of message to vault ID
         messageToVaultId[message] = vaultId;
