@@ -25,6 +25,15 @@ async function readDeployment(dir) {
 }
 
 async function saveDeployment(deployment, dir) {
+  if (fs.existsSync(path.dirname(dir))) {
+    const oldData = await readDeployment(dir);
+    if (oldData) {
+      deployment = {
+        ...oldData,
+        ...deployment,
+      };
+    }
+  }
   fs.writeFileSync(dir, JSON.stringify(deployment, null, 2), { flag: "w+" });
 }
 

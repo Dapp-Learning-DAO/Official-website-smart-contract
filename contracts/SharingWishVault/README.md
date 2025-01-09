@@ -8,7 +8,7 @@
 
 | 合约名称         | 地址                                         |
 | ---------------- | -------------------------------------------- |
-| SharingWishVault | `0x3Ac9aAde80F7602D08953d20B0074E47367fE63E` |
+| SharingWishVault | `0x66b509875222B7ECC8b3FFF4eF18CD0A3465512d` |
 | MockERC20        | `0x23bb951AE6408Aa12e9A228C5ec1377721017FcC` |
 
 ## 主要特性

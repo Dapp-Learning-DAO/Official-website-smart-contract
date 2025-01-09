@@ -26,6 +26,7 @@ interface ISharingWishVault {
         uint256 indexed vaultId,
         address indexed creator,
         address token,
+        uint256 lockTime,
         string message
     );
     event FundsDonated(

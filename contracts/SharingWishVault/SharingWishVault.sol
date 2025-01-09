@@ -26,8 +26,8 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
     // Total number of vaults created
     uint256 public totalVaultCount;
 
-    // Minimum lock time for funds (14 days)
-    uint256 public constant MIN_LOCK_TIME = 14 days;
+    // Minimum lock time for funds (3 days)
+    uint256 public constant MIN_LOCK_TIME = 3 days;
 
     // Mapping for allowed tokens
     mapping(address => bool) public allowedTokensMap;
@@ -67,16 +67,17 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
         if (lockDuration < MIN_LOCK_TIME) revert InvalidLockDuration();
 
         vaultId = totalVaultCount++;
+        uint256 lockTime = block.timestamp + lockDuration;
         WishVault storage vault = vaults[vaultId];
         vault.message = message;
         vault.creator = msg.sender;
         vault.token = token;
-        vault.lockTime = block.timestamp + lockDuration;
+        vault.lockTime = lockTime;
 
         // Store the mapping of message to vault ID
         messageToVaultId[message] = vaultId;
 
-        emit VaultCreated(vaultId, msg.sender, token, message);
+        emit VaultCreated(vaultId, msg.sender, token, lockTime, message);
         return vaultId;
     }
 

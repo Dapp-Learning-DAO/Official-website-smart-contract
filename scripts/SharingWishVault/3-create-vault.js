@@ -37,7 +37,7 @@ async function main() {
   // Create vault parameters
   const message = "First Wish Vault"; // Replace with your message
   const token = deployment.MockERC20;
-  const lockDuration = 14 * 24 * 60 * 60; // 14 days in seconds
+  const lockDuration = 3 * 24 * 60 * 60; // 3 days in seconds
 
   // Create vault
   console.log("Creating vault with parameters:");
