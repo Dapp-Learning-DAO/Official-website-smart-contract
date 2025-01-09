@@ -14,11 +14,17 @@ const settings = {
   },
 };
 function mnemonic() {
-  return [
-    process.env.PRIVATE_KEY,
-    // process.env.PRIVATE_KEY1,
-    // process.env.PRIVATE_KEY2,
-  ];
+  let pv_arr = [];
+  if (process.env.PRIVATE_KEY) {
+    pv_arr.push(process.env.PRIVATE_KEY);
+  }
+  if (process.env.PRIVATE_KEY1) {
+    pv_arr.push(process.env.PRIVATE_KEY1);
+  }
+  if (process.env.PRIVATE_KEY2) {
+    pv_arr.push(process.env.PRIVATE_KEY2);
+  }
+  return pv_arr;
 }
 
 /** @type import('hardhat/config').HardhatUserConfig */
@@ -50,6 +56,12 @@ module.exports = {
       url: "https://optimism-mainnet.infura.io/v3/" + process.env.INFURA_ID,
       accounts: mnemonic(),
     },
+    "optimism-sepolia": {
+      url: "https://sepolia.optimism.io",
+      accounts: mnemonic(),
+      chainId: 11155420,
+      timeout: 60000, // Increase timeout to 60 seconds
+    },
     arbitrum: {
       url: "https://arb1.arbitrum.io/rpc",
       accounts: mnemonic(),
@@ -79,6 +91,7 @@ module.exports = {
       sepolia: process.env.EHTERSCAN_KEY,
       scroll: process.env.SCROLLSCAN_KEY,
       optimisticEthereum: process.env.OP_KEY,
+      "optimism-sepolia": process.env.OPTIMISM_SCAN_KEY,
       arbitrumOne: process.env.ARBI_KEY,
       polygonZKEVM: process.env.POLYGONZKEVM_KEY,
       linea: process.env.LINEASCAN_API_KEY,
@@ -98,6 +111,14 @@ module.exports = {
         urls: {
           apiURL: "https://api-zkevm.polygonscan.com/api",
           browserURL: "https://zkevm.polygonscan.com/",
+        },
+      },
+      {
+        network: "optimism-sepolia",
+        chainId: 11155420,
+        urls: {
+          apiURL: "https://api-sepolia-optimistic.etherscan.io/api",
+          browserURL: "https://sepolia-optimism.etherscan.io/",
         },
       },
       {

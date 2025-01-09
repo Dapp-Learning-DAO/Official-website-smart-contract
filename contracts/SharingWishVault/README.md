@@ -1,8 +1,15 @@
 # SharingWishVault
 
-## 功能概述
-
 `SharingWishVault` 是一个基于以太坊的智能合约，用于管理愿望分享和资金分配。它允许用户创建愿望资金库（`Vault`），接受捐赠，并通过管理员（`Admin`）审核后分配资金给指定的接收者（`Claimer`）。
+
+## 合约地址
+
+### Optimism Sepolia 网络
+
+| 合约名称         | 地址                                         |
+| ---------------- | -------------------------------------------- |
+| SharingWishVault | `0x9be5488189d1bBD2E409790252da4Fc627c5d904` |
+| MockERC20        | `0x23bb951AE6408Aa12e9A228C5ec1377721017FcC` |
 
 ## 主要特性
 
