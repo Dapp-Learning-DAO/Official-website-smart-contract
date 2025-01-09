@@ -76,7 +76,7 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
         // Store the mapping of message to vault ID
         messageToVaultId[message] = vaultId;
 
-        emit VaultCreated(vaultId, msg.sender, message);
+        emit VaultCreated(vaultId, msg.sender, token, message);
         return vaultId;
     }
 

@@ -22,7 +22,12 @@ interface ISharingWishVault {
     }
 
     // Events
-    event VaultCreated(uint256 indexed vaultId, address indexed creator, string message);
+    event VaultCreated(
+        uint256 indexed vaultId,
+        address indexed creator,
+        address token,
+        string message
+    );
     event FundsDonated(
         uint256 indexed vaultId,
         address indexed donor,
