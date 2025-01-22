@@ -8,7 +8,7 @@ describe("SharingWishVault", function () {
   let mockToken, mockTokenAddress;
   const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
   const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-  const MIN_LOCK_TIME = 14 * 24 * 60 * 60; // 14 days in seconds
+  const MIN_LOCK_TIME = 3 * 24 * 60 * 60; // 3 days in seconds, matching contract
 
   beforeEach(async function () {
     [owner, alice, bob, charlie] = await ethers.getSigners();
@@ -133,7 +133,7 @@ describe("SharingWishVault", function () {
       await sharingWishVault.connect(bob).donate(newVaultId, amount2);
 
       const vault = await sharingWishVault.vaults(newVaultId);
-      expect(vault.totalAmount).to.equal(amount1 + amount2);
+      expect(vault[3]).to.equal(amount1 + amount2);
     });
 
     it("Should accept ETH donations", async function () {
@@ -174,13 +174,112 @@ describe("SharingWishVault", function () {
       await sharingWishVault.connect(bob).donate(vaultId, donationAmount);
       await sharingWishVault
         .connect(owner)
-        .settle(vaultId, charlie.address, donationAmount);
+        .settle(vaultId, charlie.address, donationAmount, false); // Set autoClaim to false
     });
 
     it("Should allow claiming settled amounts", async function () {
       await expect(sharingWishVault.connect(charlie).claim(vaultId))
         .to.emit(sharingWishVault, "FundsClaimed")
         .withArgs(vaultId, charlie.address, mockTokenAddress, donationAmount);
+    });
+
+    it("Should auto-claim when settling with autoClaim enabled", async function () {
+      // Create new vault and donate
+      const tx = await sharingWishVault
+        .connect(alice)
+        .createVault("Auto Claim Test", mockTokenAddress, MIN_LOCK_TIME);
+      const newVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+      await sharingWishVault.connect(bob).donate(newVaultId, donationAmount);
+
+      // Get initial balance
+      const initialBalance = await mockToken.balanceOf(charlie.address);
+
+      // Settle with autoClaim enabled
+      await expect(
+        sharingWishVault
+          .connect(owner)
+          .settle(newVaultId, charlie.address, donationAmount, true),
+      )
+        .to.emit(sharingWishVault, "VaultSettled")
+        .withArgs(newVaultId, charlie.address, mockTokenAddress, donationAmount)
+        .and.to.emit(sharingWishVault, "FundsClaimed")
+        .withArgs(
+          newVaultId,
+          charlie.address,
+          mockTokenAddress,
+          donationAmount,
+        );
+
+      // Get final balance
+      const finalBalance = await mockToken.balanceOf(charlie.address);
+      expect(finalBalance - initialBalance).to.equal(donationAmount);
+
+      // Get vault data
+      const vault = await sharingWishVault.vaults(newVaultId);
+      expect(vault[3]).to.equal(0n); // totalAmount
+      expect(vault[4]).to.equal(donationAmount); // totalClaimedAmount
+    });
+
+    it("Should not auto-claim when settling with autoClaim disabled", async function () {
+      // Create new vault and donate
+      const tx = await sharingWishVault
+        .connect(alice)
+        .createVault("No Auto Claim Test", mockTokenAddress, MIN_LOCK_TIME);
+      const newVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+      await sharingWishVault.connect(bob).donate(newVaultId, donationAmount);
+
+      // Get initial balance
+      const initialBalance = await mockToken.balanceOf(charlie.address);
+
+      // Settle with autoClaim disabled
+      await expect(
+        sharingWishVault
+          .connect(owner)
+          .settle(newVaultId, charlie.address, donationAmount, false),
+      )
+        .to.emit(sharingWishVault, "VaultSettled")
+        .withArgs(newVaultId, charlie.address, mockTokenAddress, donationAmount)
+        .and.not.to.emit(sharingWishVault, "FundsClaimed");
+
+      // Get final balance
+      const finalBalance = await mockToken.balanceOf(charlie.address);
+      expect(finalBalance).to.equal(initialBalance);
+
+      // Get vault data
+      const vault = await sharingWishVault.vaults(newVaultId);
+      expect(vault[3]).to.equal(donationAmount); // totalAmount
+      expect(vault[4]).to.equal(0n); // totalClaimedAmount
+    });
+
+    it("Should not auto-claim when maxClaimableAmount is 0", async function () {
+      // Create new vault and donate
+      const tx = await sharingWishVault
+        .connect(alice)
+        .createVault("Zero Amount Test", mockTokenAddress, MIN_LOCK_TIME);
+      const newVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+      await sharingWishVault.connect(bob).donate(newVaultId, donationAmount);
+
+      // Get initial balance
+      const initialBalance = await mockToken.balanceOf(charlie.address);
+
+      // Settle with zero amount but autoClaim enabled
+      await expect(
+        sharingWishVault
+          .connect(owner)
+          .settle(newVaultId, charlie.address, 0, true),
+      )
+        .to.emit(sharingWishVault, "VaultSettled")
+        .withArgs(newVaultId, charlie.address, mockTokenAddress, 0)
+        .and.not.to.emit(sharingWishVault, "FundsClaimed");
+
+      // Get final balance
+      const finalBalance = await mockToken.balanceOf(charlie.address);
+      expect(finalBalance).to.equal(initialBalance);
+
+      // Get vault data
+      const vault = await sharingWishVault.vaults(newVaultId);
+      expect(vault[3]).to.equal(donationAmount); // totalAmount
+      expect(vault[4]).to.equal(0n); // totalClaimedAmount
     });
 
     it("Should correctly track total amount after multiple donations", async function () {
@@ -197,67 +296,55 @@ describe("SharingWishVault", function () {
       await sharingWishVault.connect(bob).donate(newVaultId, amount2);
 
       const vault = await sharingWishVault.vaults(newVaultId);
-      expect(vault.totalAmount).to.equal(amount1 + amount2);
+      expect(vault[3]).to.equal(amount1 + amount2);
     });
 
     it("Should correctly track claimed amounts after multiple settlements", async function () {
       // Create a new vault for this test
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message 3", mockTokenAddress, MIN_LOCK_TIME);
+        .createVault("Test Message 2", mockTokenAddress, MIN_LOCK_TIME);
       const newVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
 
-      const amount1 = ethers.parseEther("30");
-      const amount2 = ethers.parseEther("40");
+      const amount1 = ethers.parseEther("40");
+      const amount2 = ethers.parseEther("30");
       const totalAmount = amount1 + amount2;
 
-      // First donate enough funds
+      // Donate total amount first
       await sharingWishVault.connect(bob).donate(newVaultId, totalAmount);
+
+      // Get initial balance
+      const initialBalance = await mockToken.balanceOf(charlie.address);
 
       // First settlement and claim
       await sharingWishVault
         .connect(owner)
-        .settle(newVaultId, charlie.address, amount1);
+        .settle(newVaultId, charlie.address, amount1, false);
       await sharingWishVault.connect(charlie).claim(newVaultId);
 
       // Check intermediate state
       let vault = await sharingWishVault.vaults(newVaultId);
-      let claimedAmount = await sharingWishVault.getClaimedAmount(
-        newVaultId,
-        charlie.address,
-      );
-      let maxClaimableAmount = await sharingWishVault.getMaxClaimableAmount(
-        newVaultId,
-        charlie.address,
-      );
+      expect(vault[3]).to.equal(totalAmount - amount1); // totalAmount should be reduced by amount1
+      expect(vault[4]).to.equal(amount1); // totalClaimedAmount should be amount1
 
-      expect(vault.totalClaimedAmount).to.equal(amount1);
-      expect(vault.totalAmount).to.equal(totalAmount - amount1);
-      expect(claimedAmount).to.equal(amount1);
-      expect(maxClaimableAmount).to.equal(amount1);
+      // Check balance after first claim
+      let currentBalance = await mockToken.balanceOf(charlie.address);
+      expect(currentBalance - initialBalance).to.equal(amount1);
 
-      // Second settlement and claim with remaining amount
-      const remainingAmount = vault.totalAmount;
+      // Second settlement with remaining amount
       await sharingWishVault
         .connect(owner)
-        .settle(newVaultId, charlie.address, remainingAmount);
+        .settle(newVaultId, charlie.address, amount2, false); // Only settle the remaining amount
       await sharingWishVault.connect(charlie).claim(newVaultId);
 
       // Check final state
       vault = await sharingWishVault.vaults(newVaultId);
-      claimedAmount = await sharingWishVault.getClaimedAmount(
-        newVaultId,
-        charlie.address,
-      );
-      maxClaimableAmount = await sharingWishVault.getMaxClaimableAmount(
-        newVaultId,
-        charlie.address,
-      );
+      expect(vault[3]).to.equal(0n); // totalAmount should be 0
+      expect(vault[4]).to.equal(totalAmount); // totalClaimedAmount should be total
 
-      expect(vault.totalClaimedAmount).to.equal(totalAmount);
-      expect(vault.totalAmount).to.equal(0n);
-      expect(claimedAmount).to.equal(totalAmount);
-      expect(maxClaimableAmount).to.equal(totalAmount);
+      // Check final balance
+      currentBalance = await mockToken.balanceOf(charlie.address);
+      expect(currentBalance - initialBalance).to.equal(totalAmount);
     });
 
     it("Should correctly handle settlement and claims", async function () {
@@ -275,12 +362,12 @@ describe("SharingWishVault", function () {
       // Settle and claim full amount
       await sharingWishVault
         .connect(owner)
-        .settle(newVaultId, charlie.address, amount);
+        .settle(newVaultId, charlie.address, amount, false);
       await sharingWishVault.connect(charlie).claim(newVaultId);
 
       const vault = await sharingWishVault.vaults(newVaultId);
-      expect(vault.totalClaimedAmount).to.equal(amount);
-      expect(vault.totalAmount).to.equal(0n);
+      expect(vault[4]).to.equal(amount);
+      expect(vault[3]).to.equal(0n);
     });
 
     it("Should revert claiming more than settled amount", async function () {

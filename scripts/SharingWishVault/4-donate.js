@@ -59,6 +59,22 @@ async function main() {
     throw new Error("donor doesn't have enough tokens to donate");
   }
 
+  // Check current allowance
+  const currentAllowance = await mockToken.allowance(
+    donor.address,
+    deployment.SharingWishVault,
+  );
+  console.log(
+    "Current allowance:",
+    ethers.formatUnits(currentAllowance, 18),
+    "tokens",
+  );
+
+  // Check vault token
+  const vaultInfo = await vault.vaults(vaultId);
+  console.log("Vault token:", vaultInfo.token);
+  console.log("Expected token:", deployment.MockERC20);
+
   // Approve tokens
   console.log("Approving tokens...");
   const approveTx = await mockToken.approve(

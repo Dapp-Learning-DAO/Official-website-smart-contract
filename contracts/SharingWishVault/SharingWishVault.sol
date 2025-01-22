@@ -120,7 +120,7 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
         WishVault storage vault = vaults[vaultId];
         if (maxClaimableAmount > vault.totalAmount) revert InsufficientBalance();
 
-        vault.maxClaimableAmounts[claimer] = maxClaimableAmount;
+        vault.maxClaimableAmounts[claimer] = maxClaimableAmount + vault.claimedAmounts[claimer];
         emit VaultSettled(vaultId, claimer, vault.token, maxClaimableAmount);
 
         // Auto claim if there are funds to claim
@@ -144,9 +144,14 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
      */
     function _claim(uint256 vaultId, address claimer) internal {
         WishVault storage vault = vaults[vaultId];
-        uint256 claimableAmount = vault.maxClaimableAmounts[claimer] -
+        uint256 remainingClaimable = vault.maxClaimableAmounts[claimer] -
             vault.claimedAmounts[claimer];
-        if (claimableAmount == 0) revert NoFundsToClaim();
+        if (remainingClaimable == 0) revert NoFundsToClaim();
+
+        uint256 claimableAmount = remainingClaimable;
+        if (claimableAmount > vault.totalAmount) {
+            claimableAmount = vault.totalAmount;
+        }
 
         // Update state before external calls
         vault.claimedAmounts[claimer] += claimableAmount;
