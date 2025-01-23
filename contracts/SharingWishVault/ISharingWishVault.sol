@@ -75,6 +75,7 @@ interface ISharingWishVault {
      * @param message The content of the wish
      * @param token The token address
      * @param lockDuration The duration for which the vault will be locked
+     * @param donateAmount The amount of funds to donate
      * @return vaultId The ID of the created vault
      */
     function createVault(
@@ -96,6 +97,7 @@ interface ISharingWishVault {
      * @param vaultId The ID of the vault being settled.
      * @param claimer The address of the recipient who will claim the funds.
      * @param amount The amount of funds to be assigned to the claimer.
+     * @param autoClaim Whether to automatically claim the funds after the lock period.
      */
     function settle(uint256 vaultId, address claimer, uint256 amount, bool autoClaim) external;
 
