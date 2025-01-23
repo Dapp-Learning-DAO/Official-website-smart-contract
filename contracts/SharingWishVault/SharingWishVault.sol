@@ -55,13 +55,15 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
      * @param message The content of the wish
      * @param token The token address
      * @param lockDuration The duration for which the vault will be locked
+     * @param donateAmount The amount of funds to donate
      * @return vaultId The ID of the created vault
      */
     function createVault(
         string calldata message,
         address token,
-        uint256 lockDuration
-    ) external notInEmergencyMode returns (uint256 vaultId) {
+        uint256 lockDuration,
+        uint256 donateAmount
+    ) external payable notInEmergencyMode returns (uint256 vaultId) {
         if (token == address(0)) revert InvalidTokenAddress();
         if (!isAllowedToken(token)) revert TokenNotAllowed();
         if (lockDuration < MIN_LOCK_TIME) revert InvalidLockDuration();
@@ -78,6 +80,10 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
         messageToVaultId[message] = vaultId;
 
         emit VaultCreated(vaultId, msg.sender, token, lockTime, message);
+
+        if (donateAmount > 0) {
+            _donate(vaultId, donateAmount);
+        }
         return vaultId;
     }
 
@@ -87,6 +93,10 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
      * @param amount The amount to donate
      */
     function donate(uint256 vaultId, uint256 amount) external payable notInEmergencyMode {
+        _donate(vaultId, amount);
+    }
+
+    function _donate(uint256 vaultId, uint256 amount) internal {
         if (vaultId >= totalVaultCount) revert InvalidVaultId();
         if (amount == 0 && msg.value == 0) revert InvalidAmount();
 

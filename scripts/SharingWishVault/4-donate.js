@@ -42,6 +42,24 @@ async function main() {
     deployment.SharingWishVault,
     donor,
   );
+
+  // Check if vault exists and get its info
+  const vaultInfo = await vault.vaults(vaultId);
+  if (vaultInfo.creator === "0x0000000000000000000000000000000000000000") {
+    throw new Error(`Vault ${vaultId} does not exist`);
+  }
+  console.log("Vault creator:", vaultInfo.creator);
+  console.log("Vault token:", vaultInfo.token);
+  console.log("Expected token:", deployment.MockERC20);
+
+  // Check if vault token matches expected token
+  if (vaultInfo.token !== deployment.MockERC20) {
+    throw new Error(
+      `Vault token (${vaultInfo.token}) does not match expected token (${deployment.MockERC20})`,
+    );
+  }
+
+  // Get contract instances
   const mockToken = await ethers.getContractAt(
     "SimpleToken",
     deployment.MockERC20,
@@ -70,25 +88,31 @@ async function main() {
     "tokens",
   );
 
-  // Check vault token
-  const vaultInfo = await vault.vaults(vaultId);
-  console.log("Vault token:", vaultInfo.token);
-  console.log("Expected token:", deployment.MockERC20);
+  const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
+  const isETH = vaultInfo.token === ETH_ADDRESS;
 
-  // Approve tokens
-  console.log("Approving tokens...");
-  const approveTx = await mockToken.approve(
-    deployment.SharingWishVault,
-    amount,
-  );
-  await approveTx.wait();
-  console.log("Tokens approved");
+  if (!isETH) {
+    // Approve tokens for ERC20
+    console.log("Approving tokens...");
+    const approveTx = await mockToken.approve(
+      deployment.SharingWishVault,
+      amount,
+    );
+    await approveTx.wait();
+    console.log("Tokens approved");
+  }
 
   // Donate
   console.log("Donating to vault", vaultId);
-  console.log("Amount:", ethers.formatUnits(amount, 18), "tokens");
+  console.log(
+    "Amount:",
+    ethers.formatUnits(amount, 18),
+    isETH ? "ETH" : "tokens",
+  );
 
-  const tx = await vault.donate(vaultId, amount);
+  const tx = await vault.donate(vaultId, amount, {
+    value: isETH ? amount : 0,
+  });
   const receipt = await tx.wait();
 
   // Find FundsDonated event
