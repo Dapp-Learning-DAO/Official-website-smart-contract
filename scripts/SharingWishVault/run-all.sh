@@ -28,7 +28,7 @@ echo "====================================="
 
 # Run each script in sequence
 # run_script "0-deploy-mockerc20.js" "Mock ERC20 Token Deployment"
-# run_script "1-deploy.js" "SharingWishVault Contract Deployment"
+run_script "1-deploy.js" "SharingWishVault Contract Deployment"
 run_script "2-add-allow-token.js" "Adding Allowed Tokens"
 run_script "3-create-vault.js" "Creating Vault"
 run_script "4-donate.js" "Making Donation"

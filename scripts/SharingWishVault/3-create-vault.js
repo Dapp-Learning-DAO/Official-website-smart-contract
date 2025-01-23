@@ -38,14 +38,39 @@ async function main() {
   const message = "First Wish Vault"; // Replace with your message
   const token = deployment.MockERC20;
   const lockDuration = 3 * 24 * 60 * 60; // 3 days in seconds
+  const donateAmount = ethers.parseUnits("100", 18); // 100 tokens with 18 decimals
+
+  // If donating ERC20 tokens, approve first
+  if (
+    donateAmount > 0 &&
+    token !== "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE"
+  ) {
+    console.log("Approving tokens for initial donation...");
+    const approveTx = await mockToken.approve(
+      deployment.SharingWishVault,
+      donateAmount,
+    );
+    await approveTx.wait();
+    console.log("Tokens approved");
+  }
 
   // Create vault
   console.log("Creating vault with parameters:");
   console.log("- Message:", message);
   console.log("- Token:", token);
   console.log("- Lock Duration:", lockDuration, "seconds");
+  console.log(
+    "- Initial Donation:",
+    ethers.formatUnits(donateAmount, 18),
+    "tokens",
+  );
 
-  const tx = await vault.createVault(message, token, lockDuration);
+  const tx = await vault.createVault(
+    message,
+    token,
+    lockDuration,
+    donateAmount,
+  );
   const receipt = await tx.wait();
 
   // Find VaultCreated event

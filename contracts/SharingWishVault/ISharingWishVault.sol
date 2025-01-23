@@ -80,8 +80,9 @@ interface ISharingWishVault {
     function createVault(
         string calldata message,
         address token,
-        uint256 lockDuration
-    ) external returns (uint256 vaultId);
+        uint256 lockDuration,
+        uint256 donateAmount
+    ) external payable returns (uint256 vaultId);
 
     /**
      * Donates funds to a specific vault.
