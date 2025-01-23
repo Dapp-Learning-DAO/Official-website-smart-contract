@@ -96,7 +96,7 @@ interface ISharingWishVault {
      * @param claimer The address of the recipient who will claim the funds.
      * @param amount The amount of funds to be assigned to the claimer.
      */
-    function settle(uint256 vaultId, address claimer, uint256 amount) external;
+    function settle(uint256 vaultId, address claimer, uint256 amount, bool autoClaim) external;
 
     /**
      * Claims the funds from a specific vault.

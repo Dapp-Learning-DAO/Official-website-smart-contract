@@ -50,13 +50,15 @@ async function main() {
 
   // Parameters
   const amount = ethers.parseUnits("50", 18); // Settle 50 tokens
+  const autoClaim = false; // Set to true to automatically claim after settling
 
   // Settle vault
   console.log("Settling vault", vaultId);
   console.log("Claimer:", claimer.address);
   console.log("Amount:", ethers.formatUnits(amount, 18), "tokens");
+  console.log("Auto claim:", autoClaim);
 
-  const tx = await vault.settle(vaultId, claimer.address, amount);
+  const tx = await vault.settle(vaultId, claimer.address, amount, autoClaim);
   const receipt = await tx.wait();
 
   // Find VaultSettled event

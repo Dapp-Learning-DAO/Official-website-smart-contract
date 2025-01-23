@@ -112,20 +112,21 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
     function settle(
         uint256 vaultId,
         address claimer,
-        uint256 maxClaimableAmount
-    ) external onlyOwner notInEmergencyMode {
-        if (vaultId >= totalVaultCount) revert InvalidVaultId();
+        uint256 maxClaimableAmount,
+        bool autoClaim
+    ) external onlyOwner notInEmergencyMode nonReentrant vaultExists(vaultId) {
         if (claimer == address(0)) revert InvalidClaimer();
 
         WishVault storage vault = vaults[vaultId];
         if (maxClaimableAmount > vault.totalAmount) revert InsufficientBalance();
 
-        // Set maximum claimable amount
-        vault.maxClaimableAmounts[claimer] =
-            vault.maxClaimableAmounts[claimer] +
-            maxClaimableAmount;
-
+        vault.maxClaimableAmounts[claimer] = maxClaimableAmount + vault.claimedAmounts[claimer];
         emit VaultSettled(vaultId, claimer, vault.token, maxClaimableAmount);
+
+        // Auto claim if there are funds to claim
+        if (maxClaimableAmount > 0 && autoClaim) {
+            _claim(vaultId, claimer);
+        }
     }
 
     /**
@@ -133,25 +134,39 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
      * @param vaultId The ID of the vault
      */
     function claim(uint256 vaultId) external nonReentrant notInEmergencyMode vaultExists(vaultId) {
+        _claim(vaultId, msg.sender);
+    }
+
+    /**
+     * @dev Internal function to claim funds from a vault
+     * @param vaultId The ID of the vault
+     * @param claimer The address that will receive the funds
+     */
+    function _claim(uint256 vaultId, address claimer) internal {
         WishVault storage vault = vaults[vaultId];
-        uint256 claimableAmount = vault.maxClaimableAmounts[msg.sender] -
-            vault.claimedAmounts[msg.sender];
-        if (claimableAmount == 0) revert NoFundsToClaim();
+        uint256 remainingClaimable = vault.maxClaimableAmounts[claimer] -
+            vault.claimedAmounts[claimer];
+        if (remainingClaimable == 0) revert NoFundsToClaim();
+
+        uint256 claimableAmount = remainingClaimable;
+        if (claimableAmount > vault.totalAmount) {
+            claimableAmount = vault.totalAmount;
+        }
 
         // Update state before external calls
-        vault.claimedAmounts[msg.sender] += claimableAmount;
+        vault.claimedAmounts[claimer] += claimableAmount;
         vault.totalAmount -= claimableAmount;
         vault.totalClaimedAmount += claimableAmount;
 
         // Transfer funds
         if (vault.token == ETH_ADDRESS) {
-            (bool success, ) = payable(msg.sender).call{value: claimableAmount}('');
+            (bool success, ) = payable(claimer).call{value: claimableAmount}('');
             if (!success) revert ETHTransferFailed();
         } else {
-            IERC20(vault.token).safeTransfer(msg.sender, claimableAmount);
+            IERC20(vault.token).safeTransfer(claimer, claimableAmount);
         }
 
-        emit FundsClaimed(vaultId, msg.sender, vault.token, claimableAmount);
+        emit FundsClaimed(vaultId, claimer, vault.token, claimableAmount);
     }
 
     /**
