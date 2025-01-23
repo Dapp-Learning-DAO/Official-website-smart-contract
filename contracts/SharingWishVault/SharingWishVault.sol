@@ -55,6 +55,7 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
      * @param message The content of the wish
      * @param token The token address
      * @param lockDuration The duration for which the vault will be locked
+     * @param donateAmount The amount of funds to donate
      * @return vaultId The ID of the created vault
      */
     function createVault(
