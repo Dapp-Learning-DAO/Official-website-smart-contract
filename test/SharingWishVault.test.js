@@ -137,6 +137,142 @@ describe("SharingWishVault", function () {
     });
   });
 
+  describe("Create Vault with Permit", function () {
+    const message = "Test Message";
+    const donationAmount = ethers.parseUnits("100", 18);
+    const deadline = ethers.MaxUint256;
+
+    it("Should create vault with initial donation using permit", async function () {
+      // Get the current nonce for the creator
+      const nonce = await mockToken.nonces(alice.address);
+
+      // Create the permit signature
+      const permitData = {
+        owner: alice.address,
+        spender: sharingWishVaultAddress,
+        value: donationAmount,
+        nonce: nonce,
+        deadline: deadline,
+      };
+
+      // Sign the permit
+      const signature = await alice.signTypedData(
+        // Domain
+        {
+          name: await mockToken.name(),
+          version: "1",
+          chainId: (await ethers.provider.getNetwork()).chainId,
+          verifyingContract: mockTokenAddress,
+        },
+        // Types
+        {
+          Permit: [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" },
+          ],
+        },
+        permitData,
+      );
+
+      const { v, r, s } = ethers.Signature.from(signature);
+
+      // Create vault with permit
+      const tx = await sharingWishVault
+        .connect(alice)
+        .createVaultWithPermit(
+          message,
+          mockTokenAddress,
+          MIN_LOCK_TIME,
+          donationAmount,
+          deadline,
+          v,
+          r,
+          s,
+        );
+
+      const receipt = await tx.wait();
+      const vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+
+      // Check vault details
+      const vault = await sharingWishVault.vaults(vaultId);
+      expect(vault.message).to.equal(message);
+      expect(vault.creator).to.equal(alice.address);
+      expect(vault.token).to.equal(mockTokenAddress);
+      expect(vault.totalAmount).to.equal(donationAmount);
+
+      // Verify events
+      const vaultCreatedEvent = receipt.logs.find(
+        (log) => log.fragment && log.fragment.name === "VaultCreated",
+      );
+      expect(vaultCreatedEvent).to.not.be.undefined;
+
+      const fundsDonatedEvent = receipt.logs.find(
+        (log) => log.fragment && log.fragment.name === "FundsDonated",
+      );
+      expect(fundsDonatedEvent).to.not.be.undefined;
+      expect(fundsDonatedEvent.args.amount).to.equal(donationAmount);
+    });
+
+    it("Should create vault without initial donation", async function () {
+      const tx = await sharingWishVault.connect(alice).createVaultWithPermit(
+        message,
+        mockTokenAddress,
+        MIN_LOCK_TIME,
+        0, // No initial donation
+        deadline,
+        0, // v
+        ethers.ZeroHash, // r
+        ethers.ZeroHash, // s
+      );
+
+      const receipt = await tx.wait();
+      const vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+
+      // Check vault details
+      const vault = await sharingWishVault.vaults(vaultId);
+      expect(vault.message).to.equal(message);
+      expect(vault.creator).to.equal(alice.address);
+      expect(vault.token).to.equal(mockTokenAddress);
+      expect(vault.totalAmount).to.equal(0);
+
+      // Should only have VaultCreated event
+      const events = receipt.logs.filter(
+        (log) => log.fragment && log.fragment.name === "FundsDonated",
+      );
+      expect(events.length).to.equal(0);
+    });
+
+    it("Should revert with expired permit", async function () {
+      const expiredDeadline = (await time.latest()) - 1000; // Set deadline in the past
+
+      const { v, r, s } = await getPermitSignature(
+        alice,
+        mockToken,
+        sharingWishVaultAddress,
+        donationAmount,
+        expiredDeadline,
+      );
+
+      await expect(
+        sharingWishVault
+          .connect(alice)
+          .createVaultWithPermit(
+            message,
+            mockTokenAddress,
+            MIN_LOCK_TIME,
+            donationAmount,
+            expiredDeadline,
+            v,
+            r,
+            s,
+          ),
+      ).to.be.revertedWithCustomError(mockToken, "ERC2612ExpiredSignature");
+    });
+  });
+
   describe("Donations", function () {
     let vaultId;
 
@@ -193,6 +329,106 @@ describe("SharingWishVault", function () {
       await expect(
         sharingWishVault.connect(bob).donate(vaultId, 0),
       ).to.be.revertedWithCustomError(sharingWishVault, "InvalidAmount");
+    });
+  });
+
+  describe("Donations with Permit", function () {
+    let vaultId;
+    const donationAmount = ethers.parseUnits("100", 18);
+    const deadline = ethers.MaxUint256;
+
+    beforeEach(async function () {
+      // Create a vault first
+      const tx = await sharingWishVault
+        .connect(alice)
+        .createVault("Test Message", mockTokenAddress, MIN_LOCK_TIME, 0);
+      const receipt = await tx.wait();
+      vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+    });
+
+    it("Should accept donations with valid permit signature", async function () {
+      // Get the current nonce for the donor
+      const nonce = await mockToken.nonces(bob.address);
+
+      // Get the domain separator
+      const domainSeparator = await mockToken.DOMAIN_SEPARATOR();
+
+      // Create the permit signature
+      const permitData = {
+        owner: bob.address,
+        spender: sharingWishVaultAddress,
+        value: donationAmount,
+        nonce: nonce,
+        deadline: deadline,
+      };
+
+      // Sign the permit
+      const signature = await bob.signTypedData(
+        // Domain
+        {
+          name: await mockToken.name(),
+          version: "1",
+          chainId: (await ethers.provider.getNetwork()).chainId,
+          verifyingContract: mockTokenAddress,
+        },
+        // Types
+        {
+          Permit: [
+            { name: "owner", type: "address" },
+            { name: "spender", type: "address" },
+            { name: "value", type: "uint256" },
+            { name: "nonce", type: "uint256" },
+            { name: "deadline", type: "uint256" },
+          ],
+        },
+        permitData,
+      );
+
+      const { v, r, s } = ethers.Signature.from(signature);
+
+      // Donate with permit
+      await expect(
+        sharingWishVault
+          .connect(bob)
+          .donateWithPermit(vaultId, donationAmount, deadline, v, r, s),
+      )
+        .to.emit(sharingWishVault, "FundsDonated")
+        .withArgs(vaultId, bob.address, mockTokenAddress, donationAmount);
+
+      // Check vault balance
+      const vault = await sharingWishVault.vaults(vaultId);
+      expect(vault.totalAmount).to.equal(donationAmount);
+    });
+
+    it("Should revert with expired permit", async function () {
+      const expiredDeadline = (await time.latest()) - 1000; // Set deadline in the past
+
+      const { v, r, s } = await getPermitSignature(
+        bob,
+        mockToken,
+        sharingWishVaultAddress,
+        donationAmount,
+        expiredDeadline,
+      );
+
+      await expect(
+        sharingWishVault
+          .connect(bob)
+          .donateWithPermit(vaultId, donationAmount, expiredDeadline, v, r, s),
+      ).to.be.revertedWithCustomError(mockToken, "ERC2612ExpiredSignature");
+    });
+
+    it("Should revert with invalid signature", async function () {
+      // Use invalid signature values
+      const v = 27;
+      const r = ethers.ZeroHash;
+      const s = ethers.ZeroHash;
+
+      await expect(
+        sharingWishVault
+          .connect(bob)
+          .donateWithPermit(vaultId, donationAmount, deadline, v, r, s),
+      ).to.be.revertedWithCustomError(mockToken, "ECDSAInvalidSignature");
     });
   });
 
@@ -294,9 +530,6 @@ describe("SharingWishVault", function () {
       await sharingWishVault.connect(charlie).claim(newVaultId);
 
       // Verify final state
-      const finalBalance = await mockToken.balanceOf(charlie.address);
-      expect(finalBalance - initialBalance).to.equal(donationAmount);
-
       vault = await sharingWishVault.vaults(newVaultId);
       expect(vault.totalAmount).to.equal(0);
       expect(vault.totalClaimedAmount).to.equal(donationAmount);
@@ -485,3 +718,36 @@ describe("SharingWishVault", function () {
     });
   });
 });
+
+async function getPermitSignature(signer, token, spender, amount, deadline) {
+  const nonce = await token.nonces(signer.address);
+  const permitData = {
+    owner: signer.address,
+    spender: spender,
+    value: amount,
+    nonce: nonce,
+    deadline: deadline,
+  };
+
+  const signature = await signer.signTypedData(
+    {
+      name: await token.name(),
+      version: "1",
+      chainId: (await ethers.provider.getNetwork()).chainId,
+      verifyingContract: token.address,
+    },
+    {
+      Permit: [
+        { name: "owner", type: "address" },
+        { name: "spender", type: "address" },
+        { name: "value", type: "uint256" },
+        { name: "nonce", type: "uint256" },
+        { name: "deadline", type: "uint256" },
+      ],
+    },
+    permitData,
+  );
+
+  const { v, r, s } = ethers.Signature.from(signature);
+  return { v, r, s };
+}

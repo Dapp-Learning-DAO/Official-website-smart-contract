@@ -39,5 +39,5 @@ This document contains the official list of contract deployments across all netw
 
 | Network          | Contract         | Address                                      |
 | ---------------- | ---------------- | -------------------------------------------- |
-| Optimism Sepolia | SharingWishVault | `0xd9A321d46470704FF21E35E01793E66101441994` |
-| Optimism Sepolia | MockERC20        | `0x23bb951AE6408Aa12e9A228C5ec1377721017FcC` |
+| Optimism Sepolia | SharingWishVault | `0xDe4Bebd76ae87C831Dad5b53fd2fC8757F63eD28` |
+| Optimism Sepolia | MockERC20        | `0xe89672e34DBA796A3Bf6E2cA860910765Dcc393E` |

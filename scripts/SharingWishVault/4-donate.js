@@ -61,7 +61,7 @@ async function main() {
 
   // Get contract instances
   const mockToken = await ethers.getContractAt(
-    "SimpleToken",
+    "MockERC20",
     deployment.MockERC20,
     donor,
   );
@@ -77,43 +77,75 @@ async function main() {
     throw new Error("donor doesn't have enough tokens to donate");
   }
 
-  // Check current allowance
-  const currentAllowance = await mockToken.allowance(
-    donor.address,
-    deployment.SharingWishVault,
-  );
-  console.log(
-    "Current allowance:",
-    ethers.formatUnits(currentAllowance, 18),
-    "tokens",
-  );
-
   const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
   const isETH = vaultInfo.token === ETH_ADDRESS;
 
-  if (!isETH) {
-    // Approve tokens for ERC20
-    console.log("Approving tokens...");
-    const approveTx = await mockToken.approve(
-      deployment.SharingWishVault,
-      amount,
+  let tx;
+  let receipt;
+
+  if (isETH) {
+    // Donate ETH
+    console.log("Donating ETH to vault", vaultId);
+    console.log("Amount:", ethers.formatUnits(amount, 18), "ETH");
+
+    tx = await vault.donate(vaultId, amount, {
+      value: amount,
+    });
+    receipt = await tx.wait();
+  } else {
+    // For ERC20, use permit
+    console.log("Using permit for ERC20 donation");
+    const deadline = ethers.MaxUint256;
+
+    // Get the current nonce for the donor
+    const nonce = await mockToken.nonces(donor.address);
+    console.log("Current nonce:", nonce);
+
+    // Get the domain separator
+    const domainSeparator = await mockToken.DOMAIN_SEPARATOR();
+    console.log("Domain separator:", domainSeparator);
+
+    // Create the permit signature
+    const permitData = {
+      owner: donor.address,
+      spender: deployment.SharingWishVault,
+      value: amount,
+      nonce: nonce,
+      deadline: deadline,
+    };
+
+    // Sign the permit
+    const signature = await donor.signTypedData(
+      // Domain
+      {
+        name: await mockToken.name(),
+        version: "1",
+        chainId: (await ethers.provider.getNetwork()).chainId,
+        verifyingContract: deployment.MockERC20,
+      },
+      // Types
+      {
+        Permit: [
+          { name: "owner", type: "address" },
+          { name: "spender", type: "address" },
+          { name: "value", type: "uint256" },
+          { name: "nonce", type: "uint256" },
+          { name: "deadline", type: "uint256" },
+        ],
+      },
+      permitData,
     );
-    await approveTx.wait();
-    console.log("Tokens approved");
+
+    const { v, r, s } = ethers.Signature.from(signature);
+
+    console.log("Donating to vault", vaultId);
+    console.log("Amount:", ethers.formatUnits(amount, 18), "tokens");
+    console.log("Using permit with deadline:", deadline);
+
+    // Donate with permit
+    tx = await vault.donateWithPermit(vaultId, amount, deadline, v, r, s);
+    receipt = await tx.wait();
   }
-
-  // Donate
-  console.log("Donating to vault", vaultId);
-  console.log(
-    "Amount:",
-    ethers.formatUnits(amount, 18),
-    isETH ? "ETH" : "tokens",
-  );
-
-  const tx = await vault.donate(vaultId, amount, {
-    value: isETH ? amount : 0,
-  });
-  const receipt = await tx.wait();
 
   // Find FundsDonated event
   const event = receipt.logs.find(

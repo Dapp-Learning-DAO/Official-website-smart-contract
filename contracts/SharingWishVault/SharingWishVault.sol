@@ -5,6 +5,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
+import '@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol';
 import './ISharingWishVault.sol';
 
 /**
@@ -51,19 +52,17 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Creates a new vault with the given message
+     * @dev Internal function to create a new vault
      * @param message The content of the wish
      * @param token The token address
      * @param lockDuration The duration for which the vault will be locked
-     * @param donateAmount The amount of funds to donate
      * @return vaultId The ID of the created vault
      */
-    function createVault(
+    function _createVault(
         string calldata message,
         address token,
-        uint256 lockDuration,
-        uint256 donateAmount
-    ) external payable notInEmergencyMode returns (uint256 vaultId) {
+        uint256 lockDuration
+    ) internal returns (uint256 vaultId) {
         if (token == address(0)) revert InvalidTokenAddress();
         if (!isAllowedToken(token)) revert TokenNotAllowed();
         if (lockDuration < MIN_LOCK_TIME) revert InvalidLockDuration();
@@ -81,9 +80,62 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
 
         emit VaultCreated(vaultId, msg.sender, token, lockTime, message);
 
-        if (donateAmount > 0) {
-            _donate(vaultId, donateAmount);
+        return vaultId;
+    }
+
+    /**
+     * @dev Creates a new vault with the given message and initial donation
+     * @param message The content of the wish
+     * @param token The token address
+     * @param lockDuration The duration for which the vault will be locked
+     * @param amount The amount to donate during creation
+     * @return vaultId The ID of the created vault
+     */
+    function createVault(
+        string calldata message,
+        address token,
+        uint256 lockDuration,
+        uint256 amount
+    ) external payable notInEmergencyMode returns (uint256 vaultId) {
+        vaultId = _createVault(message, token, lockDuration);
+
+        if (amount > 0) {
+            _donate(vaultId, amount);
+        } else if (msg.value > 0) {
+            revert InvalidAmount();
         }
+
+        return vaultId;
+    }
+
+    /**
+     * @dev Creates a new vault with initial donation using permit
+     * @param message The message for the vault
+     * @param token The token address for donations
+     * @param lockDuration The duration for which funds will be locked
+     * @param amount The amount of tokens to donate
+     * @param deadline The deadline for the permit
+     * @param v The v value of the permit signature
+     * @param r The r value of the permit signature
+     * @param s The s value of the permit signature
+     */
+    function createVaultWithPermit(
+        string calldata message,
+        address token,
+        uint256 lockDuration,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external notInEmergencyMode returns (uint256 vaultId) {
+        vaultId = _createVault(message, token, lockDuration);
+
+        // Then handle the permit donation if amount > 0
+        if (amount > 0) {
+            _donateWithPermit(vaultId, amount, deadline, v, r, s);
+        }
+
         return vaultId;
     }
 
@@ -96,20 +148,72 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
         _donate(vaultId, amount);
     }
 
+    /**
+     * @dev Donates funds to a specific vault using permit signature
+     * @param vaultId The ID of the vault
+     * @param amount The amount to donate
+     * @param deadline The deadline for the permit signature
+     * @param v The v component of the permit signature
+     * @param r The r component of the permit signature
+     * @param s The s component of the permit signature
+     */
+    function donateWithPermit(
+        uint256 vaultId,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external notInEmergencyMode {
+        _donateWithPermit(vaultId, amount, deadline, v, r, s);
+    }
+
     function _donate(uint256 vaultId, uint256 amount) internal {
         if (vaultId >= totalVaultCount) revert InvalidVaultId();
         if (amount == 0 && msg.value == 0) revert InvalidAmount();
 
         WishVault storage vault = vaults[vaultId];
-
         if (vault.token == ETH_ADDRESS) {
-            if (msg.value < amount) revert InvalidAmount();
-            vault.totalAmount += msg.value;
+            if (msg.value != amount) revert InvalidAmount();
         } else {
+            if (msg.value > 0) revert InvalidAmount();
             IERC20(vault.token).safeTransferFrom(msg.sender, address(this), amount);
-            vault.totalAmount += amount;
         }
 
+        vault.totalAmount += amount;
+        emit FundsDonated(vaultId, msg.sender, vault.token, amount);
+    }
+
+    /**
+     * @dev Internal function to handle donation with permit
+     * @param vaultId The ID of the vault
+     * @param amount The amount to donate
+     * @param deadline The deadline for the permit signature
+     * @param v The v component of the permit signature
+     * @param r The r component of the permit signature
+     * @param s The s component of the permit signature
+     */
+    function _donateWithPermit(
+        uint256 vaultId,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) internal {
+        if (vaultId >= totalVaultCount) revert InvalidVaultId();
+        if (amount == 0) revert InvalidAmount();
+
+        WishVault storage vault = vaults[vaultId];
+        if (vault.token == ETH_ADDRESS) revert InvalidTokenAddress();
+
+        // Execute permit
+        IERC20Permit(vault.token).permit(msg.sender, address(this), amount, deadline, v, r, s);
+
+        // Transfer tokens using the approved allowance
+        IERC20(vault.token).safeTransferFrom(msg.sender, address(this), amount);
+
+        vault.totalAmount += amount;
         emit FundsDonated(vaultId, msg.sender, vault.token, amount);
     }
 
