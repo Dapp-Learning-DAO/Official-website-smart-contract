@@ -40,7 +40,7 @@ async function main() {
   );
 
   // Get vault info
-  const vaultInfo = await vault.vaults(vaultId);
+  const vaultInfo = await vault.vaultById(vaultId);
   const currentTime = Math.floor(Date.now() / 1000);
   const lockEndTime = Number(vaultInfo.lockTime);
   const remainingTime = lockEndTime - currentTime;

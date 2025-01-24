@@ -35,7 +35,7 @@ async function main() {
   );
 
   // Create vault parameters
-  const message = "First Wish Vault"; // Replace with your message
+  const message = `WishVault_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
   const token = deployment.MockERC20;
   const lockDuration = 3 * 24 * 60 * 60; // 3 days in seconds
   const donateAmount = ethers.parseUnits("100", 18); // 100 tokens with 18 decimals

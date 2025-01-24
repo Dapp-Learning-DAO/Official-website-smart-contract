@@ -60,77 +60,84 @@ describe("SharingWishVault", function () {
 
   describe("Vault Creation", function () {
     it("Should create vault with valid parameters", async function () {
+      const message = `WishVault_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message", mockTokenAddress, MIN_LOCK_TIME, 0);
+        .createVault(message, mockTokenAddress, MIN_LOCK_TIME, 0);
       const receipt = await tx.wait();
-      const vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+      const vaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
 
-      const vault = await sharingWishVault.vaults(vaultId);
+      const vault = await sharingWishVault.vaultById(vaultId);
       expect(vault.creator).to.equal(alice.address);
       expect(vault.token).to.equal(mockTokenAddress);
-      expect(vault.message).to.equal("Test Message");
+      expect(vault.message).to.equal(message);
       expect(vault.lockTime).to.be.greaterThanOrEqual(
         Math.floor(Date.now() / 1000) + MIN_LOCK_TIME,
       );
     });
 
     it("Should revert when creating vault with lockDuration less than MIN_LOCK_TIME", async function () {
+      const message = `WishVault_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
       await expect(
         sharingWishVault
           .connect(alice)
-          .createVault("Test Message", mockTokenAddress, MIN_LOCK_TIME - 1, 0),
+          .createVault(message, mockTokenAddress, MIN_LOCK_TIME - 1, 0),
       ).to.be.revertedWithCustomError(sharingWishVault, "InvalidLockDuration");
     });
 
     it("Should revert when creating vault with non-allowed token", async function () {
+      const message = `WishVault_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
       await expect(
         sharingWishVault
           .connect(alice)
-          .createVault("Test Message", ZERO_ADDRESS, MIN_LOCK_TIME, 0),
+          .createVault(message, ZERO_ADDRESS, MIN_LOCK_TIME, 0),
       ).to.be.revertedWithCustomError(sharingWishVault, "InvalidTokenAddress");
     });
 
     it("Should revert vault creation in emergency mode", async function () {
+      const message = `WishVault_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
       await sharingWishVault.connect(owner).toggleEmergencyMode();
       await expect(
         sharingWishVault
           .connect(alice)
-          .createVault("Test Message", mockTokenAddress, MIN_LOCK_TIME, 0),
+          .createVault(message, mockTokenAddress, MIN_LOCK_TIME, 0),
       ).to.be.revertedWithCustomError(sharingWishVault, "EmergencyModeActive");
     });
 
     it("Should create vault with initial donation", async function () {
+      const message = `WishVault_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
       const donateAmount = ethers.parseEther("50");
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault(
-          "Test Message",
-          mockTokenAddress,
-          MIN_LOCK_TIME,
-          donateAmount,
-        );
+        .createVault(message, mockTokenAddress, MIN_LOCK_TIME, donateAmount);
       const receipt = await tx.wait();
-      const vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+      const vaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
 
-      const vault = await sharingWishVault.vaults(vaultId);
+      const vault = await sharingWishVault.vaultById(vaultId);
       expect(vault.creator).to.equal(alice.address);
       expect(vault.token).to.equal(mockTokenAddress);
-      expect(vault.message).to.equal("Test Message");
+      expect(vault.message).to.equal(message);
       expect(vault.totalAmount).to.equal(donateAmount);
     });
 
     it("Should create vault with ETH donation", async function () {
+      const message = "ETH Message";
       const donateAmount = ethers.parseEther("1");
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("ETH Message", ETH_ADDRESS, MIN_LOCK_TIME, donateAmount, {
+        .createVault(message, ETH_ADDRESS, MIN_LOCK_TIME, donateAmount, {
           value: donateAmount,
         });
       const receipt = await tx.wait();
-      const vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+      const vaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
 
-      const vault = await sharingWishVault.vaults(vaultId);
+      const vault = await sharingWishVault.vaultById(vaultId);
       expect(vault.creator).to.equal(alice.address);
       expect(vault.token).to.equal(ETH_ADDRESS);
       expect(vault.totalAmount).to.equal(donateAmount);
@@ -138,7 +145,7 @@ describe("SharingWishVault", function () {
   });
 
   describe("Create Vault with Permit", function () {
-    const message = "Test Message";
+    const message = `WishVault_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
     const donationAmount = ethers.parseUnits("100", 18);
     const deadline = ethers.MaxUint256;
 
@@ -192,12 +199,13 @@ describe("SharingWishVault", function () {
           r,
           s,
         );
-
       const receipt = await tx.wait();
-      const vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+      const vaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
 
       // Check vault details
-      const vault = await sharingWishVault.vaults(vaultId);
+      const vault = await sharingWishVault.vaultById(vaultId);
       expect(vault.message).to.equal(message);
       expect(vault.creator).to.equal(alice.address);
       expect(vault.token).to.equal(mockTokenAddress);
@@ -227,12 +235,13 @@ describe("SharingWishVault", function () {
         ethers.ZeroHash, // r
         ethers.ZeroHash, // s
       );
-
       const receipt = await tx.wait();
-      const vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+      const vaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
 
       // Check vault details
-      const vault = await sharingWishVault.vaults(vaultId);
+      const vault = await sharingWishVault.vaultById(vaultId);
       expect(vault.message).to.equal(message);
       expect(vault.creator).to.equal(alice.address);
       expect(vault.token).to.equal(mockTokenAddress);
@@ -277,11 +286,14 @@ describe("SharingWishVault", function () {
     let vaultId;
 
     beforeEach(async function () {
+      const message = `WishVault_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message", mockTokenAddress, MIN_LOCK_TIME, 0);
+        .createVault(message, mockTokenAddress, MIN_LOCK_TIME, 0);
       const receipt = await tx.wait();
-      vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+      vaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
     });
 
     it("Should accept ERC20 token donations", async function () {
@@ -293,10 +305,13 @@ describe("SharingWishVault", function () {
 
     it("Should correctly track total amount after multiple donations", async function () {
       // Create a new vault for this test
+      const message = "Test Message 2";
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message 2", mockTokenAddress, MIN_LOCK_TIME, 0);
-      const newVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+        .createVault(message, mockTokenAddress, MIN_LOCK_TIME, 0);
+      const newVaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
 
       const amount1 = ethers.parseEther("100");
       const amount2 = ethers.parseEther("50");
@@ -304,16 +319,19 @@ describe("SharingWishVault", function () {
       await sharingWishVault.connect(bob).donate(newVaultId, amount1);
       await sharingWishVault.connect(bob).donate(newVaultId, amount2);
 
-      const vault = await sharingWishVault.vaults(newVaultId);
-      expect(vault[3]).to.equal(amount1 + amount2);
+      const vault = await sharingWishVault.vaultById(newVaultId);
+      expect(vault.totalAmount).to.equal(amount1 + amount2);
     });
 
     it("Should accept ETH donations", async function () {
-      const ethVaultTx = await sharingWishVault
+      const message = "ETH Vault";
+      const tx = await sharingWishVault
         .connect(alice)
-        .createVault("ETH Vault", ETH_ADDRESS, MIN_LOCK_TIME, 0);
-      const ethVaultReceipt = await ethVaultTx.wait();
-      const ethVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+        .createVault(message, ETH_ADDRESS, MIN_LOCK_TIME, 0);
+      const receipt = await tx.wait();
+      const ethVaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
 
       const amount = ethers.parseEther("1");
       await expect(
@@ -339,11 +357,14 @@ describe("SharingWishVault", function () {
 
     beforeEach(async function () {
       // Create a vault first
+      const message = `WishVault_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message", mockTokenAddress, MIN_LOCK_TIME, 0);
+        .createVault(message, mockTokenAddress, MIN_LOCK_TIME, 0);
       const receipt = await tx.wait();
-      vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+      vaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
     });
 
     it("Should accept donations with valid permit signature", async function () {
@@ -396,7 +417,7 @@ describe("SharingWishVault", function () {
         .withArgs(vaultId, bob.address, mockTokenAddress, donationAmount);
 
       // Check vault balance
-      const vault = await sharingWishVault.vaults(vaultId);
+      const vault = await sharingWishVault.vaultById(vaultId);
       expect(vault.totalAmount).to.equal(donationAmount);
     });
 
@@ -437,11 +458,14 @@ describe("SharingWishVault", function () {
     const donationAmount = ethers.parseEther("100");
 
     beforeEach(async function () {
+      const message = `WishVault_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message", mockTokenAddress, MIN_LOCK_TIME, 0);
+        .createVault(message, mockTokenAddress, MIN_LOCK_TIME, 0);
       const receipt = await tx.wait();
-      vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+      vaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
 
       await sharingWishVault.connect(bob).donate(vaultId, donationAmount);
       await sharingWishVault
@@ -457,11 +481,17 @@ describe("SharingWishVault", function () {
 
     it("Should auto-claim when settling with autoClaim enabled", async function () {
       // Create new vault and donate
+      const message = "Auto Claim Test";
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Auto Claim Test", mockTokenAddress, MIN_LOCK_TIME, 0);
-      const newVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
-      await sharingWishVault.connect(bob).donate(newVaultId, donationAmount);
+        .createVault(message, mockTokenAddress, MIN_LOCK_TIME, 0);
+      const newVaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
+
+      const amount = ethers.parseEther("100");
+
+      await sharingWishVault.connect(bob).donate(newVaultId, amount);
 
       // Get initial balance
       const initialBalance = await mockToken.balanceOf(charlie.address);
@@ -470,37 +500,35 @@ describe("SharingWishVault", function () {
       await expect(
         sharingWishVault
           .connect(owner)
-          .settle(newVaultId, charlie.address, donationAmount, true),
+          .settle(newVaultId, charlie.address, amount, true),
       )
         .to.emit(sharingWishVault, "VaultSettled")
-        .withArgs(newVaultId, charlie.address, mockTokenAddress, donationAmount)
+        .withArgs(newVaultId, charlie.address, mockTokenAddress, amount)
         .to.emit(sharingWishVault, "FundsClaimed")
-        .withArgs(
-          newVaultId,
-          charlie.address,
-          mockTokenAddress,
-          donationAmount,
-        );
+        .withArgs(newVaultId, charlie.address, mockTokenAddress, amount);
 
       // Verify balance change
       const finalBalance = await mockToken.balanceOf(charlie.address);
-      expect(finalBalance - initialBalance).to.equal(donationAmount);
+      expect(finalBalance - initialBalance).to.equal(amount);
 
       // Verify vault state
-      const vault = await sharingWishVault.vaults(newVaultId);
-      expect(vault.totalAmount).to.equal(0);
-      expect(vault.totalClaimedAmount).to.equal(donationAmount);
+      const vault = await sharingWishVault.vaultById(newVaultId);
+      expect(vault.totalClaimedAmount).to.equal(amount);
+      expect(vault.totalAmount).to.equal(0n);
       expect(
         await sharingWishVault.getClaimedAmount(newVaultId, charlie.address),
-      ).to.equal(donationAmount);
+      ).to.equal(amount);
     });
 
     it("Should not auto-claim when settling with autoClaim disabled", async function () {
       // Create new vault and donate
+      const message = "No Auto Claim Test";
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("No Auto Claim Test", mockTokenAddress, MIN_LOCK_TIME, 0);
-      const newVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+        .createVault(message, mockTokenAddress, MIN_LOCK_TIME, 0);
+      const newVaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
       await sharingWishVault.connect(bob).donate(newVaultId, donationAmount);
 
       // Get initial balance
@@ -516,7 +544,7 @@ describe("SharingWishVault", function () {
       expect(afterSettleBalance).to.equal(initialBalance);
 
       // Verify vault state
-      let vault = await sharingWishVault.vaults(newVaultId);
+      let vault = await sharingWishVault.vaultById(newVaultId);
       expect(vault.totalAmount).to.equal(donationAmount);
       expect(vault.totalClaimedAmount).to.equal(0);
       expect(
@@ -530,17 +558,20 @@ describe("SharingWishVault", function () {
       await sharingWishVault.connect(charlie).claim(newVaultId);
 
       // Verify final state
-      vault = await sharingWishVault.vaults(newVaultId);
+      vault = await sharingWishVault.vaultById(newVaultId);
       expect(vault.totalAmount).to.equal(0);
       expect(vault.totalClaimedAmount).to.equal(donationAmount);
     });
 
     it("Should correctly track total amount after multiple donations", async function () {
       // Create a new vault for this test
+      const message = "Test Message 2";
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message 2", mockTokenAddress, MIN_LOCK_TIME, 0);
-      const newVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+        .createVault(message, mockTokenAddress, MIN_LOCK_TIME, 0);
+      const newVaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
 
       const amount1 = ethers.parseEther("100");
       const amount2 = ethers.parseEther("50");
@@ -548,16 +579,19 @@ describe("SharingWishVault", function () {
       await sharingWishVault.connect(bob).donate(newVaultId, amount1);
       await sharingWishVault.connect(bob).donate(newVaultId, amount2);
 
-      const vault = await sharingWishVault.vaults(newVaultId);
-      expect(vault[3]).to.equal(amount1 + amount2);
+      const vault = await sharingWishVault.vaultById(newVaultId);
+      expect(vault.totalAmount).to.equal(amount1 + amount2);
     });
 
     it("Should correctly track claimed amounts after multiple settlements", async function () {
       // Create a new vault for this test
+      const message = "Test Message 2";
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message 2", mockTokenAddress, MIN_LOCK_TIME, 0);
-      const newVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+        .createVault(message, mockTokenAddress, MIN_LOCK_TIME, 0);
+      const newVaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
 
       const amount1 = ethers.parseEther("40");
       const amount2 = ethers.parseEther("30");
@@ -576,9 +610,9 @@ describe("SharingWishVault", function () {
       await sharingWishVault.connect(charlie).claim(newVaultId);
 
       // Check intermediate state
-      let vault = await sharingWishVault.vaults(newVaultId);
-      expect(vault[3]).to.equal(totalAmount - amount1); // totalAmount should be reduced by amount1
-      expect(vault[4]).to.equal(amount1); // totalClaimedAmount should be amount1
+      let vault = await sharingWishVault.vaultById(newVaultId);
+      expect(vault.totalAmount).to.equal(totalAmount - amount1);
+      expect(vault.totalClaimedAmount).to.equal(amount1);
 
       // Check balance after first claim
       let currentBalance = await mockToken.balanceOf(charlie.address);
@@ -591,9 +625,9 @@ describe("SharingWishVault", function () {
       await sharingWishVault.connect(charlie).claim(newVaultId);
 
       // Check final state
-      vault = await sharingWishVault.vaults(newVaultId);
-      expect(vault[3]).to.equal(0n); // totalAmount should be 0
-      expect(vault[4]).to.equal(totalAmount); // totalClaimedAmount should be total
+      vault = await sharingWishVault.vaultById(newVaultId);
+      expect(vault.totalAmount).to.equal(0);
+      expect(vault.totalClaimedAmount).to.equal(totalAmount);
 
       // Check final balance
       currentBalance = await mockToken.balanceOf(charlie.address);
@@ -602,10 +636,13 @@ describe("SharingWishVault", function () {
 
     it("Should correctly handle settlement and claims", async function () {
       // Create a new vault for this test
+      const message = "Test Message 5";
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message 5", mockTokenAddress, MIN_LOCK_TIME, 0);
-      const newVaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+        .createVault(message, mockTokenAddress, MIN_LOCK_TIME, 0);
+      const newVaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
 
       const amount = ethers.parseEther("100");
 
@@ -613,14 +650,20 @@ describe("SharingWishVault", function () {
       await sharingWishVault.connect(bob).donate(newVaultId, amount);
 
       // Settle and claim full amount
-      await sharingWishVault
-        .connect(owner)
-        .settle(newVaultId, charlie.address, amount, false);
-      await sharingWishVault.connect(charlie).claim(newVaultId);
+      await expect(
+        sharingWishVault
+          .connect(owner)
+          .settle(newVaultId, charlie.address, amount, true),
+      )
+        .to.emit(sharingWishVault, "VaultSettled")
+        .withArgs(newVaultId, charlie.address, mockTokenAddress, amount)
+        .to.emit(sharingWishVault, "FundsClaimed")
+        .withArgs(newVaultId, charlie.address, mockTokenAddress, amount);
 
-      const vault = await sharingWishVault.vaults(newVaultId);
-      expect(vault[4]).to.equal(amount);
-      expect(vault[3]).to.equal(0n);
+      // Verify vault state
+      const vault = await sharingWishVault.vaultById(newVaultId);
+      expect(vault.totalAmount).to.equal(0);
+      expect(vault.totalClaimedAmount).to.equal(amount);
     });
 
     it("Should revert claiming more than settled amount", async function () {
@@ -646,16 +689,67 @@ describe("SharingWishVault", function () {
     });
   });
 
+  describe("Vault Query", function () {
+    let vaultId;
+    const message = `WishVault_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
+    const amount = ethers.parseEther("100");
+
+    beforeEach(async function () {
+      const tx = await sharingWishVault
+        .connect(alice)
+        .createVault(message, mockTokenAddress, MIN_LOCK_TIME, amount);
+      const receipt = await tx.wait();
+      vaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
+    });
+
+    it("Should return correct vault information", async function () {
+      const vault = await sharingWishVault.vaultById(vaultId);
+      expect(vault.message).to.equal(message);
+      expect(vault.creator).to.equal(alice.address);
+      expect(vault.token).to.equal(mockTokenAddress);
+      expect(vault.totalAmount).to.equal(amount);
+      expect(vault.totalClaimedAmount).to.equal(0);
+    });
+
+    it("Should return updated vault information after donation", async function () {
+      const donationAmount = ethers.parseEther("50");
+      await mockToken
+        .connect(bob)
+        .approve(sharingWishVaultAddress, donationAmount);
+      await sharingWishVault.connect(bob).donate(vaultId, donationAmount);
+
+      const vault = await sharingWishVault.vaultById(vaultId);
+      expect(vault.totalAmount).to.equal(amount + donationAmount);
+    });
+
+    it("Should return updated vault information after claim", async function () {
+      const claimAmount = ethers.parseEther("30");
+      await time.increase(MIN_LOCK_TIME);
+      await sharingWishVault
+        .connect(owner)
+        .settle(vaultId, charlie.address, claimAmount, true);
+
+      const vault = await sharingWishVault.vaultById(vaultId);
+      expect(vault.totalAmount).to.equal(amount - claimAmount);
+      expect(vault.totalClaimedAmount).to.equal(claimAmount);
+    });
+  });
+
   describe("Emergency Functions", function () {
     let vaultId;
     const donationAmount = ethers.parseEther("100");
 
     beforeEach(async function () {
+      const message = `WishVault_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
       const tx = await sharingWishVault
         .connect(alice)
-        .createVault("Test Message", mockTokenAddress, MIN_LOCK_TIME, 0);
+        .createVault(message, mockTokenAddress, MIN_LOCK_TIME, 0);
       const receipt = await tx.wait();
-      vaultId = (await sharingWishVault.totalVaultCount()) - 1n;
+      vaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
       await sharingWishVault.connect(bob).donate(vaultId, donationAmount);
     });
 
@@ -730,12 +824,14 @@ async function getPermitSignature(signer, token, spender, amount, deadline) {
   };
 
   const signature = await signer.signTypedData(
+    // Domain
     {
       name: await token.name(),
       version: "1",
       chainId: (await ethers.provider.getNetwork()).chainId,
       verifyingContract: token.address,
     },
+    // Types
     {
       Permit: [
         { name: "owner", type: "address" },

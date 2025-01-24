@@ -44,7 +44,7 @@ async function main() {
   }
 
   // Get vault info
-  const vaultInfo = await vault.vaults(vaultId);
+  const vaultInfo = await vault.vaultById(vaultId);
   console.log(
     "Vault total amount:",
     ethers.formatUnits(vaultInfo.totalAmount, 18),

@@ -69,7 +69,14 @@ interface ISharingWishVault {
     error ETHTransferFailed();
     error ExceedsTotalAmount();
     error InvalidLockDuration();
-    error MessageAlreadyExists();
+    error VaultAlreadyExists();
+
+    // Constants and State variables
+    function ETH_ADDRESS() external view returns (address);
+    function totalVaultCount() external view returns (uint256);
+    function MIN_LOCK_TIME() external view returns (uint256);
+    function allowedTokensMap(address) external view returns (bool);
+    function emergencyMode() external view returns (bool);
 
     /**
      * @dev Creates a new vault with the given message

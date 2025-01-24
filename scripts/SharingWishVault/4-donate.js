@@ -44,7 +44,7 @@ async function main() {
   );
 
   // Check if vault exists and get its info
-  const vaultInfo = await vault.vaults(vaultId);
+  const vaultInfo = await vault.vaultById(vaultId);
   if (vaultInfo.creator === "0x0000000000000000000000000000000000000000") {
     throw new Error(`Vault ${vaultId} does not exist`);
   }
