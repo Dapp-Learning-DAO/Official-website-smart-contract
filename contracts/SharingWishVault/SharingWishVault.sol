@@ -5,6 +5,7 @@ import '@openzeppelin/contracts/access/Ownable.sol';
 import '@openzeppelin/contracts/token/ERC20/IERC20.sol';
 import '@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol';
 import '@openzeppelin/contracts/utils/ReentrancyGuard.sol';
+import '@openzeppelin/contracts/token/ERC20/extensions/IERC20Permit.sol';
 import './ISharingWishVault.sol';
 
 /**
@@ -18,10 +19,7 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
     address public constant ETH_ADDRESS = 0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE;
 
     // Mapping from vault ID to WishVault struct
-    mapping(uint256 => WishVault) public vaults;
-
-    // Mapping from message to vault ID to prevent duplicate messages
-    mapping(string => uint256) public messageToVaultId;
+    mapping(uint256 => WishVault) public vaultById;
 
     // Total number of vaults created
     uint256 public totalVaultCount;
@@ -36,7 +34,7 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
     bool public emergencyMode;
 
     modifier vaultExists(uint256 vaultId) {
-        if (vaultId >= totalVaultCount) revert InvalidVaultId();
+        if (vaultById[vaultId].creator == address(0)) revert InvalidVaultId();
         _;
     }
 
@@ -51,33 +49,93 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
     }
 
     /**
-     * @dev Creates a new vault with the given message
+     * @dev Internal function to create a new vault
      * @param message The content of the wish
      * @param token The token address
      * @param lockDuration The duration for which the vault will be locked
      * @return vaultId The ID of the created vault
      */
-    function createVault(
+    function _createVault(
         string calldata message,
         address token,
         uint256 lockDuration
-    ) external notInEmergencyMode returns (uint256 vaultId) {
+    ) internal returns (uint256 vaultId) {
         if (token == address(0)) revert InvalidTokenAddress();
         if (!isAllowedToken(token)) revert TokenNotAllowed();
         if (lockDuration < MIN_LOCK_TIME) revert InvalidLockDuration();
 
-        vaultId = totalVaultCount++;
+        totalVaultCount++;
+        // Generate vault ID using keccak256 hash of creator address and message
+        vaultId = uint256(keccak256(abi.encodePacked(msg.sender, message)));
+
+        // Check if vault with this ID already exists
+        if (vaultById[vaultId].creator != address(0)) revert VaultAlreadyExists();
+
         uint256 lockTime = block.timestamp + lockDuration;
-        WishVault storage vault = vaults[vaultId];
+        WishVault storage vault = vaultById[vaultId];
         vault.message = message;
         vault.creator = msg.sender;
         vault.token = token;
         vault.lockTime = lockTime;
 
-        // Store the mapping of message to vault ID
-        messageToVaultId[message] = vaultId;
-
         emit VaultCreated(vaultId, msg.sender, token, lockTime, message);
+
+        return vaultId;
+    }
+
+    /**
+     * @dev Creates a new vault with the given message and initial donation
+     * @param message The content of the wish
+     * @param token The token address
+     * @param lockDuration The duration for which the vault will be locked
+     * @param amount The amount to donate during creation
+     * @return vaultId The ID of the created vault
+     */
+    function createVault(
+        string calldata message,
+        address token,
+        uint256 lockDuration,
+        uint256 amount
+    ) external payable notInEmergencyMode returns (uint256 vaultId) {
+        vaultId = _createVault(message, token, lockDuration);
+
+        if (amount > 0) {
+            _donate(vaultId, amount);
+        } else if (msg.value > 0) {
+            revert InvalidAmount();
+        }
+
+        return vaultId;
+    }
+
+    /**
+     * @dev Creates a new vault with initial donation using permit
+     * @param message The message for the vault
+     * @param token The token address for donations
+     * @param lockDuration The duration for which funds will be locked
+     * @param amount The amount of tokens to donate
+     * @param deadline The deadline for the permit
+     * @param v The v value of the permit signature
+     * @param r The r value of the permit signature
+     * @param s The s value of the permit signature
+     */
+    function createVaultWithPermit(
+        string calldata message,
+        address token,
+        uint256 lockDuration,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external notInEmergencyMode returns (uint256 vaultId) {
+        vaultId = _createVault(message, token, lockDuration);
+
+        // Then handle the permit donation if amount > 0
+        if (amount > 0) {
+            _donateWithPermit(vaultId, amount, deadline, v, r, s);
+        }
+
         return vaultId;
     }
 
@@ -86,20 +144,77 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
      * @param vaultId The ID of the vault
      * @param amount The amount to donate
      */
-    function donate(uint256 vaultId, uint256 amount) external payable notInEmergencyMode {
-        if (vaultId >= totalVaultCount) revert InvalidVaultId();
+    function donate(
+        uint256 vaultId,
+        uint256 amount
+    ) external payable notInEmergencyMode vaultExists(vaultId) {
+        _donate(vaultId, amount);
+    }
+
+    /**
+     * @dev Donates funds to a specific vault using permit signature
+     * @param vaultId The ID of the vault
+     * @param amount The amount to donate
+     * @param deadline The deadline for the permit signature
+     * @param v The v component of the permit signature
+     * @param r The r component of the permit signature
+     * @param s The s component of the permit signature
+     */
+    function donateWithPermit(
+        uint256 vaultId,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external notInEmergencyMode vaultExists(vaultId) {
+        _donateWithPermit(vaultId, amount, deadline, v, r, s);
+    }
+
+    function _donate(uint256 vaultId, uint256 amount) internal {
         if (amount == 0 && msg.value == 0) revert InvalidAmount();
 
-        WishVault storage vault = vaults[vaultId];
-
+        WishVault storage vault = vaultById[vaultId];
         if (vault.token == ETH_ADDRESS) {
-            if (msg.value < amount) revert InvalidAmount();
-            vault.totalAmount += msg.value;
+            if (msg.value != amount) revert InvalidAmount();
         } else {
+            if (msg.value > 0) revert InvalidAmount();
             IERC20(vault.token).safeTransferFrom(msg.sender, address(this), amount);
-            vault.totalAmount += amount;
         }
 
+        vault.totalAmount += amount;
+        emit FundsDonated(vaultId, msg.sender, vault.token, amount);
+    }
+
+    /**
+     * @dev Internal function to handle donation with permit
+     * @param vaultId The ID of the vault
+     * @param amount The amount to donate
+     * @param deadline The deadline for the permit signature
+     * @param v The v component of the permit signature
+     * @param r The r component of the permit signature
+     * @param s The s component of the permit signature
+     */
+    function _donateWithPermit(
+        uint256 vaultId,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) internal {
+        if (amount == 0) revert InvalidAmount();
+
+        WishVault storage vault = vaultById[vaultId];
+        if (vault.token == ETH_ADDRESS) revert InvalidTokenAddress();
+
+        // Execute permit
+        IERC20Permit(vault.token).permit(msg.sender, address(this), amount, deadline, v, r, s);
+
+        // Transfer tokens using the approved allowance
+        IERC20(vault.token).safeTransferFrom(msg.sender, address(this), amount);
+
+        vault.totalAmount += amount;
         emit FundsDonated(vaultId, msg.sender, vault.token, amount);
     }
 
@@ -117,7 +232,7 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
     ) external onlyOwner notInEmergencyMode nonReentrant vaultExists(vaultId) {
         if (claimer == address(0)) revert InvalidClaimer();
 
-        WishVault storage vault = vaults[vaultId];
+        WishVault storage vault = vaultById[vaultId];
         if (maxClaimableAmount > vault.totalAmount) revert InsufficientBalance();
 
         vault.maxClaimableAmounts[claimer] = maxClaimableAmount + vault.claimedAmounts[claimer];
@@ -143,7 +258,7 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
      * @param claimer The address that will receive the funds
      */
     function _claim(uint256 vaultId, address claimer) internal {
-        WishVault storage vault = vaults[vaultId];
+        WishVault storage vault = vaultById[vaultId];
         uint256 remainingClaimable = vault.maxClaimableAmounts[claimer] -
             vault.claimedAmounts[claimer];
         if (remainingClaimable == 0) revert NoFundsToClaim();
@@ -180,7 +295,7 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
     ) external nonReentrant notInEmergencyMode vaultExists(vaultId) {
         if (amount == 0) revert InvalidAmount();
 
-        WishVault storage vault = vaults[vaultId];
+        WishVault storage vault = vaultById[vaultId];
         if (block.timestamp < vault.lockTime) revert LockPeriodNotExpired();
         if (vault.totalAmount < amount) revert InsufficientBalance();
 
@@ -210,7 +325,7 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
         if (!emergencyMode) revert EmergencyModeNotActive();
         if (amount == 0) revert InvalidAmount();
 
-        WishVault storage vault = vaults[vaultId];
+        WishVault storage vault = vaultById[vaultId];
         if (vault.totalAmount < amount) revert InsufficientBalance();
 
         // Update state before external calls
@@ -250,7 +365,7 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
      * @param claimer The address of the claimer
      */
     function getClaimedAmount(uint256 vaultId, address claimer) external view returns (uint256) {
-        return vaults[vaultId].claimedAmounts[claimer];
+        return vaultById[vaultId].claimedAmounts[claimer];
     }
 
     /**
@@ -262,6 +377,6 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
         uint256 vaultId,
         address claimer
     ) external view returns (uint256) {
-        return vaults[vaultId].maxClaimableAmounts[claimer];
+        return vaultById[vaultId].maxClaimableAmounts[claimer];
     }
 }

@@ -31,11 +31,18 @@ async function main() {
       path.join(__dirname, "./deployment." + network.name + ".json"),
     );
 
-    await hre.run("verify:verify", {
-      address: sharingWishVaultAddress,
-      constructorArguments: [deployer.address],
-    });
-    console.log("Contract verified on Etherscan");
+    await hre
+      .run("verify:verify", {
+        address: sharingWishVaultAddress,
+        constructorArguments: [deployer.address],
+      })
+      .then((res) => {
+        console.log("Contract verified on Etherscan");
+        console.log("txHash:", res.transactionHash);
+      })
+      .catch((error) => {
+        console.log("verify:verify error", error);
+      });
   }
 }
 

@@ -69,18 +69,51 @@ interface ISharingWishVault {
     error ETHTransferFailed();
     error ExceedsTotalAmount();
     error InvalidLockDuration();
+    error VaultAlreadyExists();
+
+    // Constants and State variables
+    function ETH_ADDRESS() external view returns (address);
+    function totalVaultCount() external view returns (uint256);
+    function MIN_LOCK_TIME() external view returns (uint256);
+    function allowedTokensMap(address) external view returns (bool);
+    function emergencyMode() external view returns (bool);
 
     /**
      * @dev Creates a new vault with the given message
      * @param message The content of the wish
      * @param token The token address
      * @param lockDuration The duration for which the vault will be locked
+     * @param amount The amount of funds to donate
      * @return vaultId The ID of the created vault
      */
     function createVault(
         string calldata message,
         address token,
-        uint256 lockDuration
+        uint256 lockDuration,
+        uint256 amount
+    ) external payable returns (uint256 vaultId);
+
+    /**
+     * @dev Creates a new vault with the given message and initial donation using permit
+     * @param message The content of the wish
+     * @param token The token address
+     * @param lockDuration The duration for which the vault will be locked
+     * @param amount The amount to donate during creation
+     * @param deadline The deadline for the permit signature
+     * @param v The v component of the permit signature
+     * @param r The r component of the permit signature
+     * @param s The s component of the permit signature
+     * @return vaultId The ID of the created vault
+     */
+    function createVaultWithPermit(
+        string calldata message,
+        address token,
+        uint256 lockDuration,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
     ) external returns (uint256 vaultId);
 
     /**
@@ -91,10 +124,29 @@ interface ISharingWishVault {
     function donate(uint256 vaultId, uint256 amount) external payable;
 
     /**
+     * Donates funds to a specific vault using permit signature.
+     * @param vaultId The ID of the vault to which funds are donated.
+     * @param amount The amount of funds being donated.
+     * @param deadline The deadline for the permit signature.
+     * @param v The v component of the permit signature.
+     * @param r The r component of the permit signature.
+     * @param s The s component of the permit signature.
+     */
+    function donateWithPermit(
+        uint256 vaultId,
+        uint256 amount,
+        uint256 deadline,
+        uint8 v,
+        bytes32 r,
+        bytes32 s
+    ) external;
+
+    /**
      * Admin audits and settles the vault, assigning a claimer address.
      * @param vaultId The ID of the vault being settled.
      * @param claimer The address of the recipient who will claim the funds.
      * @param amount The amount of funds to be assigned to the claimer.
+     * @param autoClaim Whether to automatically claim the funds after the lock period.
      */
     function settle(uint256 vaultId, address claimer, uint256 amount, bool autoClaim) external;
 

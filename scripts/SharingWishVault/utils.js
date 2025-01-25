@@ -66,8 +66,8 @@ async function saveVaultRecord(network, vaultId, vaultInfo) {
 async function getLatestVaultId(network) {
   const records = await readVaultRecord();
   const networkVaults = records.vaults[network] || {};
-  const vaultIds = Object.keys(networkVaults).map(Number);
-  return vaultIds.length > 0 ? Math.max(...vaultIds) : -1;
+  const vaultIds = Object.keys(networkVaults);
+  return vaultIds.length > 0 ? vaultIds[vaultIds.length - 1] : "0";
 }
 
 module.exports = {
