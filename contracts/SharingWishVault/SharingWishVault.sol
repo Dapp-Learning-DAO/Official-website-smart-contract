@@ -183,6 +183,7 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
         }
 
         vault.totalAmount += amount;
+        vault.donorAmounts[msg.sender] += amount; // 记录捐赠者的捐赠金额
         emit FundsDonated(vaultId, msg.sender, vault.token, amount);
     }
 
@@ -215,6 +216,7 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
         IERC20(vault.token).safeTransferFrom(msg.sender, address(this), amount);
 
         vault.totalAmount += amount;
+        vault.donorAmounts[msg.sender] += amount; // 记录捐赠者的捐赠金额
         emit FundsDonated(vaultId, msg.sender, vault.token, amount);
     }
 
@@ -297,12 +299,23 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
 
         WishVault storage vault = vaultById[vaultId];
         if (block.timestamp < vault.lockTime) revert LockPeriodNotExpired();
-        if (vault.totalAmount < amount) revert InsufficientBalance();
 
-        // Update state before external calls
+        // 检查捐赠者是否有捐赠记录
+        uint256 donorAmount = vault.donorAmounts[msg.sender];
+        if (donorAmount == 0) revert InsufficientBalance();
+
+        // 计算捐赠者可以提取的最大金额（按照捐赠比例）
+        uint256 totalDonated = vault.totalAmount + vault.totalClaimedAmount;
+        uint256 donorShare = (donorAmount * vault.totalAmount) / totalDonated;
+
+        // 确保提取金额不超过捐赠者的份额
+        if (amount > donorShare) revert InsufficientBalance();
+
+        // 更新状态
         vault.totalAmount -= amount;
+        vault.donorAmounts[msg.sender] -= amount;
 
-        // Transfer funds
+        // 转账
         if (vault.token == ETH_ADDRESS) {
             (bool success, ) = payable(msg.sender).call{value: amount}('');
             if (!success) revert ETHTransferFailed();
@@ -348,6 +361,37 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
 
     function removeAllowedToken(address token) external onlyOwner notInEmergencyMode {
         allowedTokensMap[token] = false;
+    }
+
+    /**
+     * @dev Get donor information for a specific vault
+     * @param vaultId The ID of the vault
+     * @param donor The address of the donor
+     * @return donatedAmount The amount donated by the donor
+     * @return withdrawableAmount The amount that can be withdrawn by the donor
+     */
+    function getDonorInfo(
+        uint256 vaultId,
+        address donor
+    )
+        external
+        view
+        vaultExists(vaultId)
+        returns (uint256 donatedAmount, uint256 withdrawableAmount)
+    {
+        WishVault storage vault = vaultById[vaultId];
+        donatedAmount = vault.donorAmounts[donor];
+
+        // 如果锁定期未结束或者没有捐赠记录，可提取金额为0
+        if (block.timestamp < vault.lockTime || donatedAmount == 0) {
+            return (donatedAmount, 0);
+        }
+
+        // 计算捐赠者可以提取的最大金额（按照捐赠比例）
+        uint256 totalDonated = vault.totalAmount + vault.totalClaimedAmount;
+        withdrawableAmount = (donatedAmount * vault.totalAmount) / totalDonated;
+
+        return (donatedAmount, withdrawableAmount);
     }
 
     function isAllowedToken(address token) public view returns (bool) {

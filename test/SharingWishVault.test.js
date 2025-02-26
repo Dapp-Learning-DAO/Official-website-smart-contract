@@ -3,7 +3,7 @@ const { ethers } = require("hardhat");
 const { time } = require("@nomicfoundation/hardhat-network-helpers");
 
 describe("SharingWishVault", function () {
-  let owner, alice, bob, charlie;
+  let owner, alice, bob, charlie, david;
   let sharingWishVault, sharingWishVaultAddress;
   let mockToken, mockTokenAddress;
   const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
@@ -11,7 +11,7 @@ describe("SharingWishVault", function () {
   const MIN_LOCK_TIME = 3 * 24 * 60 * 60; // 3 days in seconds, matching contract
 
   beforeEach(async function () {
-    [owner, alice, bob, charlie] = await ethers.getSigners();
+    [owner, alice, bob, charlie, david] = await ethers.getSigners();
 
     // Deploy mock ERC20 token
     const MockToken = await ethers.getContractFactory("MockERC20");
@@ -33,11 +33,20 @@ describe("SharingWishVault", function () {
     // Mint tokens for testing
     await mockToken.connect(alice).mint(ethers.parseEther("1000"));
     await mockToken.connect(bob).mint(ethers.parseEther("1000"));
+    await mockToken.connect(charlie).mint(ethers.parseEther("1000"));
+    await mockToken.connect(david).mint(ethers.parseEther("1000"));
+
     await mockToken
       .connect(alice)
       .approve(sharingWishVaultAddress, ethers.MaxUint256);
     await mockToken
       .connect(bob)
+      .approve(sharingWishVaultAddress, ethers.MaxUint256);
+    await mockToken
+      .connect(charlie)
+      .approve(sharingWishVaultAddress, ethers.MaxUint256);
+    await mockToken
+      .connect(david)
       .approve(sharingWishVaultAddress, ethers.MaxUint256);
   });
 
@@ -317,7 +326,7 @@ describe("SharingWishVault", function () {
       const amount2 = ethers.parseEther("50");
 
       await sharingWishVault.connect(bob).donate(newVaultId, amount1);
-      await sharingWishVault.connect(bob).donate(newVaultId, amount2);
+      await sharingWishVault.connect(david).donate(newVaultId, amount2);
 
       const vault = await sharingWishVault.vaultById(newVaultId);
       expect(vault.totalAmount).to.equal(amount1 + amount2);
@@ -513,8 +522,8 @@ describe("SharingWishVault", function () {
 
       // Verify vault state
       const vault = await sharingWishVault.vaultById(newVaultId);
+      expect(vault.totalAmount).to.equal(0);
       expect(vault.totalClaimedAmount).to.equal(amount);
-      expect(vault.totalAmount).to.equal(0n);
       expect(
         await sharingWishVault.getClaimedAmount(newVaultId, charlie.address),
       ).to.equal(amount);
@@ -676,15 +685,15 @@ describe("SharingWishVault", function () {
     it("Should allow withdrawal after lock period", async function () {
       await time.increase(MIN_LOCK_TIME + 1);
       await expect(
-        sharingWishVault.connect(alice).withdraw(vaultId, donationAmount),
+        sharingWishVault.connect(bob).withdraw(vaultId, donationAmount),
       )
         .to.emit(sharingWishVault, "FundsWithdrawn")
-        .withArgs(vaultId, alice.address, mockTokenAddress, donationAmount);
+        .withArgs(vaultId, bob.address, mockTokenAddress, donationAmount);
     });
 
     it("Should revert withdrawal before lock period", async function () {
       await expect(
-        sharingWishVault.connect(alice).withdraw(vaultId, donationAmount),
+        sharingWishVault.connect(bob).withdraw(vaultId, donationAmount),
       ).to.be.revertedWithCustomError(sharingWishVault, "LockPeriodNotExpired");
     });
   });
@@ -809,6 +818,164 @@ describe("SharingWishVault", function () {
           "OwnableUnauthorizedAccount",
         )
         .withArgs(alice.address);
+    });
+  });
+
+  describe("Donor Features", function () {
+    describe("Donor Tracking", function () {
+      let vaultId;
+
+      beforeEach(async function () {
+        const message = `WishVault_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
+        const tx = await sharingWishVault
+          .connect(alice)
+          .createVault(message, mockTokenAddress, MIN_LOCK_TIME, 0);
+        const receipt = await tx.wait();
+        vaultId = ethers.keccak256(
+          ethers.solidityPacked(
+            ["address", "string"],
+            [alice.address, message],
+          ),
+        );
+      });
+
+      it("Should track donor amounts correctly", async function () {
+        const aliceDonation = ethers.parseEther("100");
+        const bobDonation = ethers.parseEther("200");
+        const charlieDonation = ethers.parseEther("300");
+
+        // Alice donates
+        await sharingWishVault.connect(alice).donate(vaultId, aliceDonation);
+
+        // Check donor info
+        const [aliceDonated1, aliceWithdrawable1] =
+          await sharingWishVault.getDonorInfo(vaultId, alice.address);
+        expect(aliceDonated1).to.equal(aliceDonation);
+        expect(aliceWithdrawable1).to.equal(0); // Not withdrawable yet (lock period)
+
+        // Bob donates
+        await sharingWishVault.connect(bob).donate(vaultId, bobDonation);
+
+        // Charlie donates
+        await sharingWishVault
+          .connect(charlie)
+          .donate(vaultId, charlieDonation);
+
+        // Check all donor info
+        const [aliceDonated2] = await sharingWishVault.getDonorInfo(
+          vaultId,
+          alice.address,
+        );
+        const [bobDonated] = await sharingWishVault.getDonorInfo(
+          vaultId,
+          bob.address,
+        );
+        const [charlieDonated] = await sharingWishVault.getDonorInfo(
+          vaultId,
+          charlie.address,
+        );
+
+        expect(aliceDonated2).to.equal(aliceDonation);
+        expect(bobDonated).to.equal(bobDonation);
+        expect(charlieDonated).to.equal(charlieDonation);
+
+        // Fast forward past lock period
+        await time.increase(MIN_LOCK_TIME + 1);
+
+        // Now check withdrawable amounts
+        const [, aliceWithdrawable2] = await sharingWishVault.getDonorInfo(
+          vaultId,
+          alice.address,
+        );
+        const [, bobWithdrawable] = await sharingWishVault.getDonorInfo(
+          vaultId,
+          bob.address,
+        );
+        const [, charlieWithdrawable] = await sharingWishVault.getDonorInfo(
+          vaultId,
+          charlie.address,
+        );
+
+        // Total donations = 600 ETH, so each donor should be able to withdraw their full donation
+        expect(aliceWithdrawable2).to.equal(aliceDonation);
+        expect(bobWithdrawable).to.equal(bobDonation);
+        expect(charlieWithdrawable).to.equal(charlieDonation);
+      });
+    });
+
+    describe("Proportional Withdrawals", function () {
+      let vaultId;
+      const aliceDonation = ethers.parseEther("100");
+      const bobDonation = ethers.parseEther("200");
+      const charlieDonation = ethers.parseEther("300");
+      const totalDonation = aliceDonation + bobDonation + charlieDonation;
+
+      beforeEach(async function () {
+        const message = `WishVault_${new Date().getTime()}_${Math.floor(Math.random() * 1000)}`;
+        const tx = await sharingWishVault
+          .connect(alice)
+          .createVault(message, mockTokenAddress, MIN_LOCK_TIME, 0);
+        const receipt = await tx.wait();
+        vaultId = ethers.keccak256(
+          ethers.solidityPacked(
+            ["address", "string"],
+            [alice.address, message],
+          ),
+        );
+
+        // All three users donate
+        await sharingWishVault.connect(alice).donate(vaultId, aliceDonation);
+        await sharingWishVault.connect(bob).donate(vaultId, bobDonation);
+        await sharingWishVault
+          .connect(charlie)
+          .donate(vaultId, charlieDonation);
+
+        // Fast forward past lock period
+        await time.increase(MIN_LOCK_TIME + 1);
+      });
+
+      it("Should allow partial withdrawal up to proportional share", async function () {
+        // Settle 300 ETH to david (half of the total)
+        const settleAmount = totalDonation / 2n;
+        await sharingWishVault
+          .connect(owner)
+          .settle(vaultId, david.address, settleAmount, true);
+
+        // Alice's proportional share should be 50 ETH
+        const [, aliceWithdrawable] = await sharingWishVault.getDonorInfo(
+          vaultId,
+          alice.address,
+        );
+        expect(aliceWithdrawable).to.equal(ethers.parseEther("50"));
+
+        // Alice withdraws part of her share
+        const withdrawal = ethers.parseEther("20");
+        await sharingWishVault.connect(alice).withdraw(vaultId, withdrawal);
+
+        // Check Alice's updated donor info after withdrawal
+        const [aliceDonatedAfter, aliceWithdrawableAfter] =
+          await sharingWishVault.getDonorInfo(vaultId, alice.address);
+        expect(aliceDonatedAfter).to.equal(aliceDonation - withdrawal);
+
+        // Due to the proportional calculation, we expect the withdrawable amount to be reduced
+        expect(aliceWithdrawableAfter).to.be.lessThan(aliceWithdrawable);
+        expect(aliceWithdrawableAfter).to.be.greaterThan(0);
+
+        // Alice tries to withdraw more than her remaining share
+        await expect(
+          sharingWishVault.connect(alice).withdraw(vaultId, aliceWithdrawable),
+        ).to.be.revertedWithCustomError(
+          sharingWishVault,
+          "InsufficientBalance",
+        );
+
+        // Alice can withdraw her remaining share
+        await expect(
+          sharingWishVault
+            .connect(alice)
+            .withdraw(vaultId, aliceWithdrawableAfter),
+        ).to.emit(sharingWishVault, "FundsWithdrawn");
+      });
     });
   });
 });
