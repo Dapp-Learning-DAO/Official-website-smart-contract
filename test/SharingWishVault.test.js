@@ -8,7 +8,7 @@ describe("SharingWishVault", function () {
   let mockToken, mockTokenAddress;
   const ETH_ADDRESS = "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE";
   const ZERO_ADDRESS = "0x0000000000000000000000000000000000000000";
-  const MIN_LOCK_TIME = 3 * 24 * 60 * 60; // 3 days in seconds, matching contract
+  const MIN_LOCK_TIME = 1 * 24 * 60 * 60; // 1 days in seconds, matching contract
 
   beforeEach(async function () {
     [owner, alice, bob, charlie, david] = await ethers.getSigners();
@@ -694,7 +694,7 @@ describe("SharingWishVault", function () {
     it("Should revert withdrawal before lock period", async function () {
       await expect(
         sharingWishVault.connect(bob).withdraw(vaultId, donationAmount),
-      ).to.be.revertedWithCustomError(sharingWishVault, "LockPeriodNotExpired");
+      ).to.be.revertedWith("Vault is not expired");
     });
   });
 
@@ -720,6 +720,7 @@ describe("SharingWishVault", function () {
       expect(vault.token).to.equal(mockTokenAddress);
       expect(vault.totalAmount).to.equal(amount);
       expect(vault.totalClaimedAmount).to.equal(0);
+      expect(vault.lockTime).to.be.gt(0); // Verify lock time is set properly
     });
 
     it("Should return updated vault information after donation", async function () {
@@ -735,7 +736,7 @@ describe("SharingWishVault", function () {
 
     it("Should return updated vault information after claim", async function () {
       const claimAmount = ethers.parseEther("30");
-      await time.increase(MIN_LOCK_TIME);
+      // 不提前增加时间，保持在锁定期内
       await sharingWishVault
         .connect(owner)
         .settle(vaultId, charlie.address, claimAmount, true);
@@ -930,17 +931,17 @@ describe("SharingWishVault", function () {
           .connect(charlie)
           .donate(vaultId, charlieDonation);
 
-        // Fast forward past lock period
-        await time.increase(MIN_LOCK_TIME + 1);
-      });
-
-      it("Should allow partial withdrawal up to proportional share", async function () {
         // Settle 300 ETH to david (half of the total)
         const settleAmount = totalDonation / 2n;
         await sharingWishVault
           .connect(owner)
           .settle(vaultId, david.address, settleAmount, true);
 
+        // Fast forward past lock period
+        await time.increase(MIN_LOCK_TIME + 1);
+      });
+
+      it("Should allow partial withdrawal up to proportional share", async function () {
         // Alice's proportional share should be 50 ETH
         const [, aliceWithdrawable] = await sharingWishVault.getDonorInfo(
           vaultId,
@@ -976,6 +977,102 @@ describe("SharingWishVault", function () {
             .withdraw(vaultId, aliceWithdrawableAfter),
         ).to.emit(sharingWishVault, "FundsWithdrawn");
       });
+    });
+  });
+
+  describe("Lock Period Logic", function () {
+    let vaultId;
+    const donationAmount = ethers.parseEther("100");
+
+    beforeEach(async function () {
+      const message = `LockPeriodTest_${new Date().getTime()}`;
+      const tx = await sharingWishVault
+        .connect(alice)
+        .createVault(message, mockTokenAddress, MIN_LOCK_TIME, 0);
+      const receipt = await tx.wait();
+      vaultId = ethers.keccak256(
+        ethers.solidityPacked(["address", "string"], [alice.address, message]),
+      );
+    });
+
+    it("Should allow donations during lock period", async function () {
+      // Still in lock period, should accept donation
+      await expect(
+        sharingWishVault.connect(bob).donate(vaultId, donationAmount),
+      )
+        .to.emit(sharingWishVault, "FundsDonated")
+        .withArgs(vaultId, bob.address, mockTokenAddress, donationAmount);
+    });
+
+    it("Should reject donations after lock period expires", async function () {
+      // Fast forward to after lock period
+      await time.increase(MIN_LOCK_TIME + 100);
+
+      // Now donation should be rejected
+      await expect(
+        sharingWishVault.connect(bob).donate(vaultId, donationAmount),
+      ).to.be.revertedWithCustomError(sharingWishVault, "VaultExpired");
+    });
+
+    it("Should allow settlement during lock period", async function () {
+      // Donate some funds first
+      await sharingWishVault.connect(bob).donate(vaultId, donationAmount);
+
+      // Settlement during lock period should be accepted
+      await expect(
+        sharingWishVault
+          .connect(owner)
+          .settle(vaultId, charlie.address, donationAmount, false),
+      ).to.emit(sharingWishVault, "VaultSettled");
+    });
+
+    it("Should reject settlement after lock period", async function () {
+      // Donate some funds first
+      await sharingWishVault.connect(bob).donate(vaultId, donationAmount);
+
+      // Fast forward to after lock period
+      await time.increase(MIN_LOCK_TIME + 100);
+
+      // Settlement after lock period should be rejected
+      await expect(
+        sharingWishVault
+          .connect(owner)
+          .settle(vaultId, charlie.address, donationAmount, false),
+      ).to.be.revertedWithCustomError(sharingWishVault, "VaultExpired");
+    });
+
+    it("Should allow claims during lock period", async function () {
+      // Donate some funds first
+      await sharingWishVault.connect(bob).donate(vaultId, donationAmount);
+
+      // Set up a claimable amount
+      await sharingWishVault
+        .connect(owner)
+        .settle(vaultId, charlie.address, donationAmount, false);
+
+      // Claim should be allowed during lock period
+      await expect(sharingWishVault.connect(charlie).claim(vaultId)).to.emit(
+        sharingWishVault,
+        "FundsClaimed",
+      );
+    });
+
+    it("Should reject claims after lock period", async function () {
+      // Donate some funds first
+      await sharingWishVault.connect(bob).donate(vaultId, donationAmount);
+
+      // Set up a claimable amount
+      await sharingWishVault
+        .connect(owner)
+        .settle(vaultId, charlie.address, donationAmount, false);
+
+      // Fast forward to after lock period
+      await time.increase(MIN_LOCK_TIME + 100);
+
+      // Claim should be rejected after lock period
+      await expect(
+        sharingWishVault.connect(charlie).claim(vaultId),
+      ).to.be.revertedWithCustomError(sharingWishVault, "VaultExpired");
     });
   });
 });

@@ -24,8 +24,8 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
     // Total number of vaults created
     uint256 public totalVaultCount;
 
-    // Minimum lock time for funds (3 days)
-    uint256 public constant MIN_LOCK_TIME = 3 days;
+    // Minimum lock time for funds (1 days)
+    uint256 public constant MIN_LOCK_TIME = 1 days;
 
     // Mapping for allowed tokens
     mapping(address => bool) public allowedTokensMap;
@@ -175,6 +175,9 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
         if (amount == 0 && msg.value == 0) revert InvalidAmount();
 
         WishVault storage vault = vaultById[vaultId];
+
+        if (vault.lockTime < block.timestamp) revert VaultExpired();
+
         if (vault.token == ETH_ADDRESS) {
             if (msg.value != amount) revert InvalidAmount();
         } else {
@@ -183,7 +186,7 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
         }
 
         vault.totalAmount += amount;
-        vault.donorAmounts[msg.sender] += amount; // 记录捐赠者的捐赠金额
+        vault.donorAmounts[msg.sender] += amount; // Record the donation amount of the donor
         emit FundsDonated(vaultId, msg.sender, vault.token, amount);
     }
 
@@ -216,7 +219,7 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
         IERC20(vault.token).safeTransferFrom(msg.sender, address(this), amount);
 
         vault.totalAmount += amount;
-        vault.donorAmounts[msg.sender] += amount; // 记录捐赠者的捐赠金额
+        vault.donorAmounts[msg.sender] += amount; // Record the donation amount of the donor
         emit FundsDonated(vaultId, msg.sender, vault.token, amount);
     }
 
@@ -235,6 +238,7 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
         if (claimer == address(0)) revert InvalidClaimer();
 
         WishVault storage vault = vaultById[vaultId];
+        if (vault.lockTime < block.timestamp) revert VaultExpired();
         if (maxClaimableAmount > vault.totalAmount) revert InsufficientBalance();
 
         vault.maxClaimableAmounts[claimer] = maxClaimableAmount + vault.claimedAmounts[claimer];
@@ -261,6 +265,9 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
      */
     function _claim(uint256 vaultId, address claimer) internal {
         WishVault storage vault = vaultById[vaultId];
+
+        if (vault.lockTime < block.timestamp) revert VaultExpired();
+
         uint256 remainingClaimable = vault.maxClaimableAmounts[claimer] -
             vault.claimedAmounts[claimer];
         if (remainingClaimable == 0) revert NoFundsToClaim();
@@ -298,24 +305,25 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
         if (amount == 0) revert InvalidAmount();
 
         WishVault storage vault = vaultById[vaultId];
-        if (block.timestamp < vault.lockTime) revert LockPeriodNotExpired();
 
-        // 检查捐赠者是否有捐赠记录
+        require(block.timestamp > vault.lockTime, 'Vault is not expired');
+
+        // Check if the donor has a donation record
         uint256 donorAmount = vault.donorAmounts[msg.sender];
         if (donorAmount == 0) revert InsufficientBalance();
 
-        // 计算捐赠者可以提取的最大金额（按照捐赠比例）
+        // Calculate the maximum amount that can be withdrawn by the donor (based on the donation proportion)
         uint256 totalDonated = vault.totalAmount + vault.totalClaimedAmount;
         uint256 donorShare = (donorAmount * vault.totalAmount) / totalDonated;
 
-        // 确保提取金额不超过捐赠者的份额
+        // Ensure the withdrawal amount does not exceed the donor's share
         if (amount > donorShare) revert InsufficientBalance();
 
-        // 更新状态
+        // Update state
         vault.totalAmount -= amount;
         vault.donorAmounts[msg.sender] -= amount;
 
-        // 转账
+        // Transfer funds
         if (vault.token == ETH_ADDRESS) {
             (bool success, ) = payable(msg.sender).call{value: amount}('');
             if (!success) revert ETHTransferFailed();
@@ -382,12 +390,12 @@ contract SharingWishVault is ISharingWishVault, Ownable, ReentrancyGuard {
         WishVault storage vault = vaultById[vaultId];
         donatedAmount = vault.donorAmounts[donor];
 
-        // 如果锁定期未结束或者没有捐赠记录，可提取金额为0
+        // If the lock period has not ended or there is no donation record, the withdrawable amount is 0
         if (block.timestamp < vault.lockTime || donatedAmount == 0) {
             return (donatedAmount, 0);
         }
 
-        // 计算捐赠者可以提取的最大金额（按照捐赠比例）
+        // Calculate the maximum amount that can be withdrawn by the donor (based on the donation proportion)
         uint256 totalDonated = vault.totalAmount + vault.totalClaimedAmount;
         withdrawableAmount = (donatedAmount * vault.totalAmount) / totalDonated;
 

@@ -66,7 +66,7 @@ interface ISharingWishVault {
     error InsufficientBalance();
     error InvalidClaimer();
     error NoFundsToClaim();
-    error LockPeriodNotExpired();
+    error VaultExpired();
     error ETHTransferFailed();
     error ExceedsTotalAmount();
     error InvalidLockDuration();

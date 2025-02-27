@@ -20,28 +20,31 @@ async function main() {
     throw new Error("Required contract addresses not found in deployment file");
   }
 
+  const sharingVaultAddress = deployment.SharingWishVault;
+  const mockTokenAddress = deployment.MockERC20;
+
   // Get contract instance
   const vault = await ethers.getContractAt(
     "SharingWishVault",
-    deployment.SharingWishVault,
+    sharingVaultAddress,
     admin,
   );
   const mockToken = await ethers.getContractAt(
     "SimpleToken",
-    deployment.MockERC20,
+    mockTokenAddress,
     admin,
   );
 
   // Check if token is already allowed
-  const isAllowed = await vault.isAllowedToken(deployment.MockERC20);
+  const isAllowed = await vault.isAllowedToken(mockTokenAddress);
   if (isAllowed) {
-    console.log("Token is already allowed:", deployment.MockERC20);
+    console.log("Token is already allowed:", mockTokenAddress);
     return;
   }
 
   // Add token to allowed list
-  console.log("Adding token to allowed list:", deployment.MockERC20);
-  const tx = await vault.addAllowedToken(deployment.MockERC20);
+  console.log("Adding token to allowed list:", mockTokenAddress);
+  const tx = await vault.addAllowedToken(mockTokenAddress);
   await tx.wait();
 
   // Verify token is now allowed
