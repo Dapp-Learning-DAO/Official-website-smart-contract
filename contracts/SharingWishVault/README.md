@@ -4,11 +4,17 @@
 
 ## 合约地址
 
+### Optimism 网络
+
+| 合约名称         | 地址                                         |
+| ---------------- | -------------------------------------------- |
+| SharingWishVault | `0xb2012522f8aD0f90CA1A30c903B5993c4fAB301A` |
+
 ### Optimism Sepolia 网络
 
 | 合约名称         | 地址                                         |
 | ---------------- | -------------------------------------------- |
-| SharingWishVault | `0xDe4Bebd76ae87C831Dad5b53fd2fC8757F63eD28` |
+| SharingWishVault | `0x765278450757f25330169a648CB6478909003283` |
 | MockERC20        | `0xe89672e34DBA796A3Bf6E2cA860910765Dcc393E` |
 
 ## 主要特性
@@ -23,7 +29,7 @@
 
     - 支持多人向 Vault 捐赠（`donate`）
     - 资金锁定期（`lockTime`）为 14 天
-    - 创建者可在锁定期后提取（`withdraw`）未分配的资金
+    - 捐赠者可在锁定期后按捐赠比例提取（`withdraw`）未分配的资金
 
 3. **资金分配**
 
@@ -31,7 +37,13 @@
     - 支持多次分配和领取
     - 接收者可以随时领取（`claim`）已分配的资金
 
-4. **安全特性**
+4. **捐赠者功能**
+
+    - 跟踪每个捐赠者的捐赠金额
+    - 支持按捐赠比例提取未分配资金
+    - 提供捐赠者信息查询接口
+
+5. **安全特性**
     - 紧急模式（`Emergency Mode`）开关
     - 管理员紧急提款功能
     - 防重入（`ReentrancyGuard`）保护
@@ -44,11 +56,11 @@
 1. **创建 Vault**
 
 ```solidity
-function createVault(string calldata message, address token, uint256 lockDuration) external returns (uint256 vaultId)
+function createVault(string calldata message, address token, uint256 lockDuration, uint256 amount) external payable returns (uint256 vaultId)
 ```
 
 -   创建新的 Vault
--   参数：消息内容、指定接受代币地址（`token`）和锁定期（`lockDuration`）
+-   参数：消息内容、指定接受代币地址（`token`）、锁定期（`lockDuration`）和初始捐赠金额（`amount`）
 -   返回：`Vault ID`
 
 2. **捐赠资金**
@@ -59,15 +71,17 @@ function donate(uint256 vaultId, uint256 amount) external payable
 
 -   向指定 Vault 捐赠资金
 -   支持 `ETH` 和 `ERC20` 代币
+-   记录捐赠者的捐赠金额
 
 3. **分配资金**
 
 ```solidity
-function settle(uint256 vaultId, address claimer, uint256 amount) external
+function settle(uint256 vaultId, address claimer, uint256 amount, bool autoClaim) external
 ```
 
 -   管理员分配资金给指定接收者（`Claimer`）
 -   可以多次分配
+-   可选择是否自动领取（`autoClaim`）
 
 4. **领取资金**
 
@@ -83,7 +97,8 @@ function claim(uint256 vaultId) external
 function withdraw(uint256 vaultId, uint256 amount) external
 ```
 
--   创建者在锁定期后提取未分配资金
+-   捐赠者在锁定期后按捐赠比例提取未分配资金
+-   提取金额不能超过捐赠者的可提取份额
 
 ### 查询功能
 
@@ -102,6 +117,15 @@ function getMaxClaimableAmount(uint256 vaultId, address claimer) external view r
 ```
 
 -   查询指定接收者可领取的最大金额（`maxClaimableAmount`）
+
+3. **查询捐赠者信息**
+
+```solidity
+function getDonorInfo(uint256 vaultId, address donor) external view returns (uint256 donatedAmount, uint256 withdrawableAmount)
+```
+
+-   查询捐赠者的捐赠金额和可提取金额
+-   可提取金额根据捐赠比例计算
 
 ### 管理功能
 
@@ -128,7 +152,7 @@ graph TD
     B -->|Return vaultId| C[Vault Created]
 
     D[Donor] -->|donate| E(Donate)
-    E -->|Update totalAmount| F[Funds Deposited]
+    E -->|Update totalAmount & donorAmounts| F[Funds Deposited]
 
     G[Admin] -->|settle| H(Allocate Funds)
     H -->|Set maxClaimableAmount| I[Funds Allocated]
@@ -138,8 +162,8 @@ graph TD
     L -->|Yes| M[Transfer to Claimer]
     L -->|No| N[Claim Failed]
 
-    O[Creator] -->|After lockTime| P(withdraw)
-    P -->|Check lockTime| Q{Lock Period Expired?}
+    O[Donor] -->|After lockTime| P(withdraw)
+    P -->|Check lockTime & donorShare| Q{Can Withdraw?}
     Q -->|Yes| R[Withdraw Funds]
     Q -->|No| S[Withdraw Failed]
 

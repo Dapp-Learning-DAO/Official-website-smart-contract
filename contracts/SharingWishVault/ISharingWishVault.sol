@@ -19,6 +19,7 @@ interface ISharingWishVault {
         string message; // The content of the wish, typically a hash to save gas.
         mapping(address => uint256) maxClaimableAmounts; // Maximum claimable amount by each recipient, default is 0.
         mapping(address => uint256) claimedAmounts; // Amounts claimed by each recipient.
+        mapping(address => uint256) donorAmounts; // Amounts donated by each donor.
     }
 
     // Events
@@ -65,7 +66,7 @@ interface ISharingWishVault {
     error InsufficientBalance();
     error InvalidClaimer();
     error NoFundsToClaim();
-    error LockPeriodNotExpired();
+    error VaultExpired();
     error ETHTransferFailed();
     error ExceedsTotalAmount();
     error InvalidLockDuration();
@@ -162,6 +163,18 @@ interface ISharingWishVault {
      * @param amount The amount to withdraw.
      */
     function withdraw(uint256 vaultId, uint256 amount) external;
+
+    /**
+     * @dev Get donor information for a specific vault
+     * @param vaultId The ID of the vault
+     * @param donor The address of the donor
+     * @return donatedAmount The amount donated by the donor
+     * @return withdrawableAmount The amount that can be withdrawn by the donor
+     */
+    function getDonorInfo(
+        uint256 vaultId,
+        address donor
+    ) external view returns (uint256 donatedAmount, uint256 withdrawableAmount);
 
     /**
      * Admin can withdraw funds in case of emergencies.

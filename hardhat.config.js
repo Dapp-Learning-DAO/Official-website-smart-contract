@@ -53,7 +53,8 @@ module.exports = {
       accounts: mnemonic(),
     },
     optimism: {
-      url: "https://optimism-mainnet.infura.io/v3/" + process.env.INFURA_ID,
+      // url: "https://optimism-mainnet.infura.io/v3/" + process.env.INFURA_ID,
+      url: "https://optimism.llamarpc.com",
       accounts: mnemonic(),
     },
     "optimism-sepolia": {
